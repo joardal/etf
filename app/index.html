@@ -18,6 +18,50 @@
   <div class="glow-bg-top"></div>
   <div class="glow-bg-bottom"></div>
 
+  <!-- Eksklusiv Tilgang / Login Overlay -->
+  <div id="auth-lock-overlay" class="auth-lock-overlay">
+    <div class="auth-glow-orbit"></div>
+    <div class="auth-card" id="auth-card">
+      <div class="auth-brand-badge">
+        <span class="auth-lock-icon">🔒</span>
+        <span>Eksklusiv Tilgang</span>
+      </div>
+      <h2 class="auth-title">ETF Analytics Pro</h2>
+      <p class="auth-subtitle">Vennligst logg inn for å få tilgang til kvantitative markedsdata, risikomodeller og teknisk ETF-screening.</p>
+      
+      <form id="auth-form" class="auth-form" autocomplete="on">
+        <div class="auth-input-group">
+          <label for="auth-username">Brukernavn</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">👤</span>
+            <input type="text" id="auth-username" autocomplete="username" placeholder="Skriv brukernavn..." required autofocus>
+          </div>
+        </div>
+
+        <div class="auth-input-group">
+          <label for="auth-password">Passord</label>
+          <div class="auth-input-wrap">
+            <span class="auth-input-icon">🔑</span>
+            <input type="password" id="auth-password" autocomplete="current-password" placeholder="Skriv passord..." required>
+          </div>
+        </div>
+
+        <div id="auth-error-msg" class="auth-error-msg" style="display: none;">
+          ⚠️ Feil brukernavn eller passord. Vennligst prøv igjen.
+        </div>
+
+        <button type="submit" id="btn-auth-submit" class="btn-auth-submit">
+          <span>Lås opp portal</span>
+          <span class="btn-auth-arrow">➔</span>
+        </button>
+
+        <div class="auth-footer-note">
+          <span>Privat markedsportal &middot; Kun for inviterte</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="app-header">
     <div class="header-container">
@@ -49,6 +93,9 @@
         </button>
         <button id="btn-reset-filters" class="btn btn-outline" title="Nullstill alle søk og filtre">
           Tilbakestill
+        </button>
+        <button id="btn-auth-logout" class="btn btn-outline btn-logout" title="Logg ut av eksklusiv tilgang">
+          🔒 Logg ut
         </button>
       </div>
     </div>

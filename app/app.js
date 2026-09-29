@@ -451,8 +451,111 @@
   const elPickerTabNameInput = document.getElementById('picker-tab-name-input');
   const elPickerSearchInput = document.getElementById('picker-search-input');
 
+  // ==========================================================================
+  // Eksklusiv Tilgang / Autentisering
+  // Brukernavn: hengekøye | Passord: hengepupper
+  // ==========================================================================
+  const AUTH_KEY = 'etf_vip_authenticated';
+  const VALID_USER = 'hengekøye';
+  const VALID_PASS = 'hengepupper';
+
+  function initAuthProtection() {
+    const overlay = document.getElementById('auth-lock-overlay');
+    const form = document.getElementById('auth-form');
+    const inputUser = document.getElementById('auth-username');
+    const inputPass = document.getElementById('auth-password');
+    const errorMsg = document.getElementById('auth-error-msg');
+    const card = document.getElementById('auth-card');
+    const btnLogout = document.getElementById('btn-auth-logout');
+
+    function isAuth() {
+      try {
+        return localStorage.getItem(AUTH_KEY) === 'true';
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function lock() {
+      if (overlay) {
+        overlay.classList.remove('auth-hidden');
+      }
+      document.body.style.overflow = 'hidden';
+      if (inputUser) {
+        inputUser.value = '';
+        inputUser.classList.remove('input-error');
+      }
+      if (inputPass) {
+        inputPass.value = '';
+        inputPass.classList.remove('input-error');
+      }
+      if (errorMsg) {
+        errorMsg.style.display = 'none';
+      }
+      setTimeout(() => {
+        if (inputUser) inputUser.focus();
+      }, 100);
+    }
+
+    function unlock() {
+      if (overlay) {
+        overlay.classList.add('auth-hidden');
+      }
+      document.body.style.overflow = '';
+    }
+
+    // Sjekk status ved oppstart
+    if (isAuth()) {
+      unlock();
+    } else {
+      lock();
+    }
+
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const user = (inputUser ? inputUser.value : '').trim().toLowerCase();
+        const pass = (inputPass ? inputPass.value : '').trim();
+
+        if (user === VALID_USER && pass === VALID_PASS) {
+          try {
+            localStorage.setItem(AUTH_KEY, 'true');
+          } catch (err) {}
+          if (errorMsg) errorMsg.style.display = 'none';
+          if (inputUser) inputUser.classList.remove('input-error');
+          if (inputPass) inputPass.classList.remove('input-error');
+          unlock();
+        } else {
+          if (errorMsg) errorMsg.style.display = 'block';
+          if (inputUser) inputUser.classList.add('input-error');
+          if (inputPass) inputPass.classList.add('input-error');
+          if (card) {
+            card.classList.remove('auth-shake');
+            void card.offsetWidth; // Trigger reflow for shake animation
+            card.classList.add('auth-shake');
+          }
+          if (inputPass) {
+            inputPass.value = '';
+            inputPass.focus();
+          }
+        }
+      });
+    }
+
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        try {
+          localStorage.removeItem(AUTH_KEY);
+        } catch (err) {}
+        lock();
+      });
+    }
+  }
+
   // Initialize
   function init() {
+    initAuthProtection();
+
     if (!rawData || !rawData.length) {
       elHeaderCount.textContent = 'Ingen data funnet';
       return;
