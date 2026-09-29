@@ -1968,6 +1968,38 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     const modeBtns = document.querySelectorAll('.chart-mode-btn');
     const canvas = document.getElementById('analytics-canvas');
     const tooltip = document.getElementById('chart-tooltip');
+    const btnFullscreen = document.getElementById('btn-chart-fullscreen');
+
+    function toggleChartFullscreen(forceState) {
+      if (!elChartsPanel) return;
+      const isFs = typeof forceState === 'boolean' ? forceState : !elChartsPanel.classList.contains('charts-fullscreen-mode');
+      if (isFs) {
+        elChartsPanel.classList.add('charts-fullscreen-mode');
+        if (btnFullscreen) {
+          btnFullscreen.classList.add('active');
+          btnFullscreen.innerHTML = '<span class="fs-icon">✕</span> <span class="fs-text">Lukk fullskjerm</span>';
+        }
+      } else {
+        elChartsPanel.classList.remove('charts-fullscreen-mode');
+        if (btnFullscreen) {
+          btnFullscreen.classList.remove('active');
+          btnFullscreen.innerHTML = '<span class="fs-icon">⛶</span> <span class="fs-text">Fullskjerm</span>';
+        }
+      }
+      setTimeout(() => {
+        renderAnalyticsChart();
+      }, 50);
+    }
+
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener('click', () => toggleChartFullscreen());
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && elChartsPanel && elChartsPanel.classList.contains('charts-fullscreen-mode')) {
+        toggleChartFullscreen(false);
+      }
+    });
 
     try {
       if (localStorage.getItem('etf_charts_open') === 'true') {
@@ -2030,8 +2062,21 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
         if (closest) {
           canvas.style.cursor = 'pointer';
           tooltip.style.display = 'block';
+
+          // Smart kant-deteksjon så tooltippen aldri kuttes av på toppen eller sidene
+          const isNearTop = closest.py < 135;
+          const isNearLeft = closest.px < 150;
+          const isNearRight = closest.px > (rect.width - 150);
+
+          let transX = '-50%';
+          if (isNearLeft) transX = '0%';
+          else if (isNearRight) transX = '-100%';
+
+          let transY = isNearTop ? '14px' : 'calc(-100% - 14px)';
+
           tooltip.style.left = `${closest.px}px`;
           tooltip.style.top = `${closest.py}px`;
+          tooltip.style.transform = `translate(${transX}, ${transY})`;
 
           const item = closest.item;
           const name = item.Navn_Morningstar || item.Navn_Fil || item.ISIN;
@@ -2107,7 +2152,7 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     const container = canvas.parentElement;
     const dpr = window.devicePixelRatio || 1;
     const width = container.clientWidth;
-    const height = container.clientHeight || 380;
+    const height = container.clientHeight || 520;
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -2180,7 +2225,7 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     let maxY = Math.max(...validItems.map(d => d.y));
 
     const padX = (maxX - minX) * 0.08 || 1;
-    const padY = (maxY - minY) * 0.08 || 1;
+    const padY = (maxY - minY) * 0.12 || 1;
     minX -= padX;
     maxX += padX;
     minY -= padY;
@@ -2188,8 +2233,8 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
 
     const padLeft = 65;
     const padRight = 30;
-    const padTop = 35;
-    const padBottom = 45;
+    const padTop = 50;
+    const padBottom = 48;
 
     const plotW = width - padLeft - padRight;
     const plotH = height - padTop - padBottom;

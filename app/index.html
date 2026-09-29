@@ -206,7 +206,12 @@
               <button class="chart-mode-btn" data-chart="sortino_sharpe">🎯 Sortino vs. Sharpe (Avsløringsgrafen)</button>
               <button class="chart-mode-btn" data-chart="sortino_drawdown">🛡️ Sortino vs. Max Drawdown</button>
             </div>
-            <div class="charts-info-tag" id="chart-info-tag">Hold pekeren over et punkt for info &middot; Klikk for å åpne fond</div>
+            <div class="charts-toolbar-right">
+              <div class="charts-info-tag" id="chart-info-tag">Hold pekeren over et punkt for info &middot; Klikk for å åpne fond</div>
+              <button id="btn-chart-fullscreen" class="btn-chart-fullscreen" title="Vis grafer i fullskjerm (Tast Esc for å lukke)">
+                <span class="fs-icon">⛶</span> <span class="fs-text">Fullskjerm</span>
+              </button>
+            </div>
           </div>
 
           <div class="chart-canvas-container" id="chart-canvas-container">
