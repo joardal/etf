@@ -1,0 +1,11 @@
+ISIN,Kortnavn,Navn_Morningstar,Stooq_Ticker,Yahoo_Ticker,Valuta_Ticker,Kommentar
+IE00B4L5Y983,EUNL,iShares Core MSCI World ETF USD Acc,EUNL.DE,EUNL.DE,EUR,Xetra (EUR) – verifisert via Yahoo fast_info
+IE00B5BMR087,SXR8,iShares Core S&P 500 ETF USD Acc,SXR8.DE,SXR8.DE,EUR,Xetra (EUR)
+IE00BFMXXD54,VUAA,Vanguard S&P 500 ETF USD Acc,VUAA.UK,VUAA.L,USD,LSE (USD) – Stooq .UK / Yahoo .L. Xetra-alt: VUAA.DE
+LU1681048804,AUM5,Amundi S&P 500 Swap ETF EUR Acc,AUM5.DE,AUM5.DE,EUR,Xetra (EUR)
+IE00B3RBWM25,VGWL,Vanguard FTSE All-World UCITS ETF,VGWL.DE,VGWL.DE,EUR,Xetra (EUR)
+LU0496786905,LYPU,Amundi Australia (S&P/ASX 200) ETF D-EUR,LYPU.DE,LYPU.DE,EUR,Xetra (EUR)
+IE00BDFK1573,2B7S,iShares $ Treasury Bd 1-3yr ETF EURH Acc,2B7S.DE,2B7S.DE,EUR,Xetra (EUR)
+LU0908500753,LYP6,Amundi Core Stoxx Eurp 600 ETF Acc,LYP6.DE,LYP6.DE,EUR,Xetra (EUR)
+FR0010755611,18MF,Amundi MSCI USA Daily (2x)LvrgdETFAcc,18MF.DE,18MF.DE,EUR,Xetra (EUR) – leveraged
+LU1437015735,CEU2,Amundi IS Core MSCI Europe ETF DR,CEU2.DE,CEU2.DE,EUR,Xetra (EUR)

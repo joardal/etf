@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ETF Analytics Pro — Kvantitativ Markedsanalyse & Kursgrafer</title>
+  <meta name="description" content="Interaktiv kvantitativ markedsanalyse for ETF-er med egenberegnede risikomål, teknisk analyse, kursgrafer og månedsmatrise.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+
+  <!-- Glow Background Effects -->
+  <div class="glow-bg-top"></div>
+  <div class="glow-bg-bottom"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-area">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+            <polyline points="16 7 22 7 22 13"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">ETF Analytics Hub</h1>
+          <p class="brand-subtitle">Kvantitativ Markedsanalyse & ETF-Screener — Kursdata, Risiko & Teknisk Analyse</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="data-badge" id="data-status-badge">
+          <span class="pulse-dot"></span>
+          <span id="header-count">Laster ETF-er...</span>
+        </div>
+        <button id="btn-export-csv" class="btn btn-secondary" title="Last ned gjeldende filtrerte data som CSV">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Eksporter CSV
+        </button>
+        <button id="btn-reset-filters" class="btn btn-outline" title="Nullstill alle søk og filtre">
+          Tilbakestill
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- KPI Summary Cards -->
+    <section class="kpi-grid">
+      <div class="kpi-card" id="kpi-total">
+        <div class="kpi-label">Aktive Treff</div>
+        <div class="kpi-value" id="kpi-val-count">0</div>
+        <div class="kpi-sub" id="kpi-sub-count">av 2 238 totalt</div>
+      </div>
+      <div class="kpi-card" id="kpi-return">
+        <div class="kpi-label">Snitt Avkastning 12M</div>
+        <div class="kpi-value text-emerald" id="kpi-val-return">—</div>
+        <div class="kpi-sub">Annualisert 1-års avkastning</div>
+      </div>
+      <div class="kpi-card" id="kpi-sharpe">
+        <div class="kpi-label">Snitt Sharpe 3Y</div>
+        <div class="kpi-value text-indigo" id="kpi-val-sharpe">—</div>
+        <div class="kpi-sub">Risikojustert avkastning</div>
+      </div>
+      <div class="kpi-card" id="kpi-stddev">
+        <div class="kpi-label">Median StdDev 3Y</div>
+        <div class="kpi-value text-amber" id="kpi-val-stddev">—</div>
+        <div class="kpi-sub">3-års volatilitet</div>
+      </div>
+      <div class="kpi-card" id="kpi-drawdown">
+        <div class="kpi-label">Snitt Max Drawdown</div>
+        <div class="kpi-value text-rose" id="kpi-val-drawdown">—</div>
+        <div class="kpi-sub">Beregnet fra daglig NAV</div>
+      </div>
+      <div class="kpi-card" id="kpi-fee">
+        <div class="kpi-label">Snitt Årlig Avgift</div>
+        <div class="kpi-value text-sky" id="kpi-val-fee">—</div>
+        <div class="kpi-sub">Løpende forvaltningskostnad</div>
+      </div>
+    </section>
+
+    <!-- Search & Quick Filters Bar -->
+    <section class="control-panel">
+      
+      <!-- Primary Search & Category Bar -->
+      <div class="search-bar-row">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-input" placeholder="Søk etter navn, ISIN, ticker eller benchmark..." autocomplete="off">
+          <button id="search-clear" class="search-clear-btn" style="display: none;">&times;</button>
+        </div>
+
+        <div class="category-select-wrapper">
+          <select id="category-filter">
+            <option value="">Alle fondskategorier</option>
+          </select>
+        </div>
+
+        <div class="status-select-wrapper">
+          <select id="nordnet-category-filter">
+            <option value="">Alle Nordnet-kategorier</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick Preset Filter Tags -->
+      <div class="quick-presets">
+        <span class="preset-label">Hurtigvalg:</span>
+        <button class="preset-pill" data-preset="sharpe_high">Sharpe 3Y &ge; 1.0</button>
+        <button class="preset-pill" data-preset="return_15">Avkastning 12M &ge; 15%</button>
+        <button class="preset-pill" data-preset="stddev_low">Standardavvik 3Y &le; 12%</button>
+        <button class="preset-pill" data-preset="drawdown_safe">Max Drawdown &ge; -15%</button>
+        <button class="preset-pill" data-preset="low_fee">Lav avgift &le; 0.20%</button>
+        <button class="preset-pill" data-preset="large_aum">AUM &ge; 1 mrd</button>
+      </div>
+
+      <!-- Dynamic Multi-Filter Builder (3 valgfrie filtre) -->
+      <div class="filter-builder-card">
+        <div class="filter-builder-header">
+          <div class="filter-builder-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            Dynamisk filterbygger (Sett inn egne grenser for nøkkeltall)
+          </div>
+          <button id="btn-add-filter" class="btn btn-sm btn-ghost">+ Legg til ekstra filter</button>
+        </div>
+
+        <div id="filter-rows-container" class="filter-rows">
+          <!-- Filter 1, 2, 3 genereres dynamisk av JavaScript -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Table Section -->
+    <section class="table-section">
+      <div class="table-header-bar">
+        <div class="table-title-group">
+          <h2>ETF Resultater</h2>
+          <span id="table-record-info" class="table-record-info">Viser 0 fond</span>
+        </div>
+
+        <div class="table-view-controls">
+          <div class="export-btn-group">
+            <button id="btn-export-xlsx" class="btn btn-sm btn-secondary export-btn" title="Last ned filtrert tabell som Excel .xlsx arbeidsbok">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="8" y1="13" x2="16" y2="13"></line>
+                <line x1="8" y1="17" x2="16" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              Eksporter Excel (.xlsx)
+            </button>
+            <button id="btn-export-csv" class="btn btn-sm btn-outline export-btn" title="Last ned filtrert tabell som semikolonseparert CSV">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              CSV
+            </button>
+          </div>
+
+          <label for="page-size-select" class="page-size-label">Rader:</label>
+          <select id="page-size-select">
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="all">Alle</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Collapsible Analytics Charts Section -->
+      <div class="analytics-charts-wrapper" id="analytics-charts-wrapper">
+        <div class="charts-toggle-bar">
+          <button id="btn-toggle-charts" class="btn-toggle-charts" title="Åpne eller skjul interaktive analyse-grafer">
+            <span class="charts-toggle-icon">📊</span>
+            <span class="charts-toggle-label">Visuelle Grafer & Kvadrant-analyse</span>
+            <span class="charts-toggle-badge">Risk/Return &middot; Sortino &middot; Drawdown</span>
+            <span class="charts-toggle-state" id="charts-toggle-state">▼ Åpne</span>
+          </button>
+        </div>
+
+        <div id="analytics-charts-panel" class="charts-panel" style="display: none;">
+          <div class="charts-toolbar">
+            <div class="charts-mode-selector">
+              <button class="chart-mode-btn active" data-chart="risk_return">🏆 Risk vs. Return (Gyllen kvadrant)</button>
+              <button class="chart-mode-btn" data-chart="sortino_sharpe">🎯 Sortino vs. Sharpe (Avsløringsgrafen)</button>
+              <button class="chart-mode-btn" data-chart="sortino_drawdown">🛡️ Sortino vs. Max Drawdown</button>
+            </div>
+            <div class="charts-info-tag" id="chart-info-tag">Hold pekeren over et punkt for info &middot; Klikk for å åpne fond</div>
+          </div>
+
+          <div class="chart-canvas-container" id="chart-canvas-container">
+            <canvas id="analytics-canvas"></canvas>
+            <div id="chart-tooltip" class="chart-tooltip" style="display: none;"></div>
+          </div>
+          <div class="chart-legend" id="chart-legend"></div>
+        </div>
+      </div>
+
+      <!-- Table View Selector Tabs -->
+      <div class="table-view-tabs" id="table-view-tabs">
+        <button class="table-tab-btn active" data-view="overview">📌 Hovedoversikt</button>
+        <button class="table-tab-btn" data-view="returns_sharpe">📈 Avkastning & Sharpe (1M–5Y)</button>
+        <button class="table-tab-btn" data-view="volatility_drawdown">🛡️ Volatilitet & Max Drawdown</button>
+        <button class="table-tab-btn" data-view="institutional">🏛️ Institusjonelt (Alfa, Beta, Capture, Tracking)</button>
+        <button class="table-tab-btn" data-view="all_20">📋 Alle 20 Nøkkeltall</button>
+        <button class="table-tab-btn" data-view="custom" id="tab-custom-btn">⭐ Min Fane</button>
+        <button class="table-tab-btn btn-customize-tab" id="btn-open-custom-modal" title="Lag din egen fane eller endre kolonner">➕ Lag / Tilpass fane</button>
+      </div>
+
+      <!-- Responsive Table Container -->
+      <div class="table-wrapper">
+        <table id="etf-table" class="etf-table">
+          <thead id="etf-table-head">
+            <tr>
+              <th data-col="ISIN" class="sortable col-isin">ISIN / Ticker <span class="sort-icon"></span></th>
+              <th data-col="Navn_Morningstar" class="sortable col-name">Fond / ETF <span class="sort-icon"></span></th>
+              <th data-col="Kategori_Morningstar" class="sortable col-cat">Kategori <span class="sort-icon"></span></th>
+              <th data-col="Avkastning_1M_%" class="sortable col-num">1M % <span class="sort-icon"></span></th>
+              <th data-col="Avkastning_3M_%" class="sortable col-num">3M % <span class="sort-icon"></span></th>
+              <th data-col="Avkastning_12M_%" class="sortable col-num">12M % <span class="sort-icon"></span></th>
+              <th data-col="Avkastning_3Y_Ann_%" class="sortable col-num">3Y Ann % <span class="sort-icon"></span></th>
+              <th data-col="Sharpe_3Y" class="sortable col-num">Sharpe 3Y <span class="sort-icon"></span></th>
+              <th data-col="Standardavvik_3Y_%" class="sortable col-num">StdDev 3Y <span class="sort-icon"></span></th>
+              <th data-col="Beregnet_Max_Drawdown_%" class="sortable col-num">Max DD % <span class="sort-icon"></span></th>
+              <th data-col="Beregnet_Sortino_Ratio" class="sortable col-num">Sortino <span class="sort-icon"></span></th>
+              <th data-col="Aarlig_Avgift_%" class="sortable col-num">Avgift % <span class="sort-icon"></span></th>
+              <th data-col="AUM_Verdi" class="sortable col-num">AUM <span class="sort-icon"></span></th>
+              <th data-col="Datastatus_Prioritet_1" class="sortable col-status">Status <span class="sort-icon"></span></th>
+              <th class="col-actions">Detaljer</th>
+            </tr>
+          </thead>
+          <tbody id="etf-table-body">
+            <!-- Rader injiseres dynamisk -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="pagination-footer">
+        <div id="pagination-info" class="pagination-info">Viser side 1 av 1</div>
+        <div class="pagination-buttons">
+          <button id="btn-page-first" class="btn btn-sm btn-icon" title="Første side">&laquo;</button>
+          <button id="btn-page-prev" class="btn btn-sm btn-icon" title="Forrige side">&lsaquo;</button>
+          <span id="current-page-display" class="page-display">1</span>
+          <button id="btn-page-next" class="btn btn-sm btn-icon" title="Neste side">&rsaquo;</button>
+          <button id="btn-page-last" class="btn btn-sm btn-icon" title="Siste side">&raquo;</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal / Detaljvisning -->
+  <div id="etf-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <div class="modal-tag" id="modal-isin-tag">ISIN</div>
+          <h3 id="modal-fund-title" class="modal-title">Fond Navn</h3>
+          <p id="modal-benchmark-sub" class="modal-sub">Benchmark</p>
+        </div>
+        <div style="display: flex; gap: 0.6rem; align-items: center;">
+          <button id="modal-open-chart-btn" class="btn btn-sm btn-secondary" style="border-color: #6366f1; color: #a5b4fc; font-weight: 600;" title="Åpne interaktiv kursgraf og teknisk analyse for dette fondet">📈 Åpne Kursgraf</button>
+          <button id="modal-ask-ai-btn" class="btn btn-sm btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 600;" title="Få Gemini AI-analyse og alternativer for dette fondet">✨ Spør AI om fondet</button>
+          <button id="modal-close-btn" class="modal-close-btn">&times;</button>
+        </div>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-tab="tab-p1">Prioritet 1 (Obligatorisk)</button>
+        <button class="modal-tab-btn" data-tab="tab-p2">Prioritet 2 (Institusjonell)</button>
+        <button class="modal-tab-btn" data-tab="tab-p3">Prioritet 3 (Egenberegnet)</button>
+        <button class="modal-tab-btn" data-tab="tab-meta">Datadeklarasjon</button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="modal-body">
+        
+        <!-- Tab 1: Prioritet 1 -->
+        <div id="tab-p1" class="tab-pane active">
+          <div class="metrics-grid" id="modal-p1-grid"></div>
+        </div>
+
+        <!-- Tab 2: Prioritet 2 -->
+        <div id="tab-p2" class="tab-pane">
+          <div class="metrics-grid" id="modal-p2-grid"></div>
+        </div>
+
+        <!-- Tab 3: Prioritet 3 -->
+        <div id="tab-p3" class="tab-pane">
+          <div class="drawdown-banner" id="modal-drawdown-banner"></div>
+          <div class="metrics-grid" id="modal-p3-grid"></div>
+        </div>
+
+        <!-- Tab 4: Datadeklarasjon -->
+        <div id="tab-meta" class="tab-pane">
+          <div class="metrics-grid" id="modal-meta-grid"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ETF Chart Studio Modal (TradingView-stil) -->
+  <div id="etf-chart-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog chart-studio-dialog" id="chart-studio-dialog">
+      <!-- Modal Header -->
+      <div class="modal-header chart-modal-header">
+        <div class="chart-header-left">
+          <div class="chart-header-tags">
+            <span class="modal-tag" id="chart-modal-ticker">TICKER</span>
+            <span class="modal-tag chart-tag-isin" id="chart-modal-isin">ISIN</span>
+            <span class="chart-header-category" id="chart-modal-cat">Kategori</span>
+          </div>
+          <h2 class="chart-header-title" id="chart-modal-title">Fond Navn</h2>
+        </div>
+        
+        <div class="chart-header-center" id="chart-header-stats">
+          <div class="chart-stat-item">
+            <span class="chart-stat-lbl">Siste kurs:</span>
+            <span class="chart-stat-val" id="chart-stat-price">—</span>
+          </div>
+          <div class="chart-stat-item">
+            <span class="chart-stat-lbl">Periode:</span>
+            <span class="chart-stat-val" id="chart-stat-change">—</span>
+          </div>
+          <div class="chart-stat-item">
+            <span class="chart-stat-lbl">52U Spenn:</span>
+            <span class="chart-stat-val font-mono" id="chart-stat-52w">—</span>
+          </div>
+        </div>
+
+        <div class="chart-header-actions">
+          <div class="chart-view-mode-tabs">
+            <button class="chart-tab-pill active" id="tab-btn-graph">📈 Kurs & Analyse</button>
+            <button class="chart-tab-pill" id="tab-btn-heatmap">🗓️ Månedsmatrise</button>
+          </div>
+          <button id="chart-btn-fullscreen" class="btn-icon-square" title="Utvid til fullskjerm / normal størrelse">⛶</button>
+          <button id="chart-modal-close-btn" class="modal-close-btn">&times;</button>
+        </div>
+      </div>
+
+      <!-- Chart Toolbar -->
+      <div class="chart-studio-toolbar">
+        <!-- Tidsrom -->
+        <div class="chart-btn-group time-range-group" id="chart-time-ranges">
+          <button class="chart-tb-btn" data-range="1M">1M</button>
+          <button class="chart-tb-btn" data-range="3M">3M</button>
+          <button class="chart-tb-btn" data-range="6M">6M</button>
+          <button class="chart-tb-btn" data-range="YTD">YTD</button>
+          <button class="chart-tb-btn" data-range="1Y">1Å</button>
+          <button class="chart-tb-btn active" data-range="3Y">3Å</button>
+          <button class="chart-tb-btn" data-range="5Y">5Å</button>
+          <button class="chart-tb-btn" data-range="ALL">Maks</button>
+        </div>
+
+        <!-- Graf-stil -->
+        <div class="chart-btn-group">
+          <button class="chart-tb-btn active" id="btn-chart-type-area" title="Areal med glød">📈 Areal</button>
+          <button class="chart-tb-btn" id="btn-chart-type-line" title="Ren kurvelinje">📉 Linje</button>
+        </div>
+
+        <!-- Indikatorer Meny -->
+        <div class="chart-dropdown-wrapper">
+          <button class="chart-tb-btn dropdown-trigger" id="btn-chart-indicators">
+            <span>📊 Indikatorer</span>
+            <span class="dropdown-arrow">▼</span>
+          </button>
+          <div class="chart-dropdown-menu" id="chart-indicators-menu" style="display: none;">
+            <div class="dropdown-section-title">Glidende gjennomsnitt</div>
+            <label class="dropdown-item">
+              <input type="checkbox" id="ind-sma50" checked>
+              <span class="indicator-color-dot dot-amber"></span>
+              <span>SMA 50 (50 dager)</span>
+            </label>
+            <label class="dropdown-item">
+              <input type="checkbox" id="ind-sma200" checked>
+              <span class="indicator-color-dot dot-cyan"></span>
+              <span>SMA 200 (200 dager)</span>
+            </label>
+            <label class="dropdown-item">
+              <input type="checkbox" id="ind-ema20">
+              <span class="indicator-color-dot dot-purple"></span>
+              <span>EMA 20 (Kortsiktig trend)</span>
+            </label>
+            <label class="dropdown-item">
+              <input type="checkbox" id="ind-bollinger">
+              <span class="indicator-color-dot dot-indigo"></span>
+              <span>Bollinger Bands (20, 2)</span>
+            </label>
+            <div class="dropdown-section-title">Prisnivåer</div>
+            <label class="dropdown-item">
+              <input type="checkbox" id="ind-52w" checked>
+              <span class="indicator-color-dot dot-emerald"></span>
+              <span>52-ukers Høy / Lav</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Underspor: RSI, Drawdown, Rullerende Sharpe, Rullerende Volatilitet -->
+        <div class="chart-btn-group">
+          <button class="chart-tb-btn" id="btn-toggle-rsi" title="Vis Relative Strength Index under grafen">
+            <span>🎯 RSI</span>
+          </button>
+          <button class="chart-tb-btn" id="btn-toggle-dd" title="Vis historisk drawdown / fall fra topp">
+            <span>🛡️ Drawdown</span>
+          </button>
+          <button class="chart-tb-btn" id="btn-toggle-rolling-sharpe" title="Rullerende 12-måneders Sharpe Ratio">
+            <span>📊 Rull. Sharpe</span>
+          </button>
+          <button class="chart-tb-btn" id="btn-toggle-rolling-vol" title="Rullerende 30-dagers annualisert volatilitet">
+            <span>🌊 Rull. Vol</span>
+          </button>
+        </div>
+
+        <!-- Sammenligning med referanseindeks -->
+        <div class="chart-btn-group">
+          <button class="chart-tb-btn" id="btn-toggle-benchmark" title="Sammenlign normalisert avkastning mot S&P 500 / MSCI World">
+            <span>⚖️ Benchmark %</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Hover Legend / Info Bar -->
+      <div class="chart-live-legend" id="chart-live-legend">
+        <span class="legend-item"><strong id="leg-date">—</strong></span>
+        <span class="legend-item">Kurs: <strong id="leg-price" class="text-white">—</strong></span>
+        <span class="legend-item" id="leg-sma50-wrap" style="color: #f59e0b;">SMA 50: <strong id="leg-sma50">—</strong></span>
+        <span class="legend-item" id="leg-sma200-wrap" style="color: #06b6d4;">SMA 200: <strong id="leg-sma200">—</strong></span>
+        <span class="legend-item" id="leg-ema20-wrap" style="color: #a855f7; display: none;">EMA 20: <strong id="leg-ema20">—</strong></span>
+        <span class="legend-item" id="leg-rsi-wrap" style="color: #c084fc; display: none;">RSI: <strong id="leg-rsi">—</strong></span>
+        <span class="legend-item" id="leg-dd-wrap" style="color: #f43f5e; display: none;">Drawdown: <strong id="leg-dd">—</strong></span>
+        <span class="legend-item" id="leg-sharpe-wrap" style="color: #34d399; display: none;">Rull. Sharpe: <strong id="leg-sharpe">—</strong></span>
+        <span class="legend-item" id="leg-vol-wrap" style="color: #38bdf8; display: none;">Rull. Vol: <strong id="leg-vol">—</strong></span>
+        <span class="legend-item" id="leg-bench-wrap" style="color: #f59e0b; display: none;">Benchmark: <strong id="leg-bench">—</strong></span>
+      </div>
+
+      <!-- Chart Canvas Body -->
+      <div class="chart-modal-body" id="chart-modal-body">
+        <div id="chart-container-main" class="chart-container-main"></div>
+        <div id="chart-container-sub" class="chart-container-sub" style="display: none;"></div>
+        <div id="chart-heatmap-container" class="chart-heatmap-container" style="display: none;"></div>
+        
+        <!-- Not Found / Loading Overlay -->
+        <div id="chart-empty-state" class="chart-empty-state" style="display: none;">
+          <div class="empty-icon">📈</div>
+          <h3 id="empty-state-title">Kurshistorikk under nedlasting</h3>
+          <p id="empty-state-msg">Råkursene for dette fondet behandles av markedsmotoren. Prøv et av fondene som allerede er klare:</p>
+          <div class="quick-etf-pills" id="empty-state-quick-pills"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom View Column Picker Modal -->
+  <div id="custom-columns-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog custom-picker-dialog">
+      <div class="modal-header">
+        <div>
+          <div class="modal-tag">Egendefinert Visning</div>
+          <h3 class="modal-title">Lag din egen fane</h3>
+          <p class="modal-sub">Navngi fanen din og velg nøyaktig hvilke nøkkeltall du vil inkludere. Alt lagres i nettleseren din.</p>
+        </div>
+        <button id="custom-modal-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body custom-picker-body">
+        <!-- Fanenavn input -->
+        <div class="picker-name-row">
+          <label for="picker-tab-name-input" class="picker-name-label">Fanetittel:</label>
+          <input type="text" id="picker-tab-name-input" class="picker-name-input" placeholder="F.eks. Mine Favoritter, Tech Screener..." value="Min Fane" maxlength="28">
+        </div>
+
+        <div class="picker-quick-actions">
+          <div class="picker-search-box">
+            <input type="text" id="picker-search-input" class="picker-search-input" placeholder="🔍 Søk i nøkkeltall (Sharpe, Drawdown, Beta, osv.)...">
+          </div>
+          <div class="picker-btn-group">
+            <button id="picker-select-all" class="btn btn-sm btn-outline">Velg alle</button>
+            <button id="picker-deselect-all" class="btn btn-sm btn-outline">Fjern alle</button>
+            <button id="picker-reset-default" class="btn btn-sm btn-outline">Standard oppsett</button>
+          </div>
+          <span id="picker-count-badge" class="picker-badge">0 kolonner valgt</span>
+        </div>
+
+        <div class="picker-columns-grid" id="picker-columns-container">
+          <!-- Grupperte sjekkbokser genereres av app.js -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-save-custom-view" class="btn btn-primary">💾 Lagre og åpne fane</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating AI Assistant Button -->
+  <button id="ai-chat-toggle-btn" class="ai-fab" title="Spør Gemini AI om fond, risikoreduksjon og alternativer">
+    <span class="ai-fab-icon">✨</span>
+    <span class="ai-fab-text">AI Fondsrådgiver</span>
+    <span class="ai-fab-pulse"></span>
+  </button>
+
+  <!-- AI Chat Drawer / Panel -->
+  <div id="ai-chat-panel" class="ai-panel" style="display: none;">
+    <div class="ai-panel-header">
+      <div class="ai-panel-title-wrap">
+        <span class="ai-badge-sparkle">✨</span>
+        <div>
+          <h4 class="ai-panel-title">AI Fondsrådgiver</h4>
+          <div class="ai-context-indicator" id="ai-context-indicator">Kontekst: 2 238 fond tilgjengelig</div>
+        </div>
+      </div>
+      <div class="ai-header-actions">
+        <button id="ai-settings-btn" class="ai-icon-btn" title="API Innstillinger">⚙️</button>
+        <button id="ai-clear-btn" class="ai-icon-btn" title="Tøm samtale">🗑️</button>
+        <button id="ai-close-btn" class="ai-icon-btn" title="Lukk chat">&times;</button>
+      </div>
+    </div>
+
+    <!-- API Settings Drawer (skjult som standard) -->
+    <div id="ai-settings-pane" class="ai-settings-pane" style="display: none;">
+      <label class="ai-settings-label">Gemini API-nøkkel:</label>
+      <div class="ai-settings-input-wrap">
+        <input type="password" id="ai-api-key-input" class="ai-api-key-input" placeholder="Lim inn Gemini API-nøkkel...">
+        <button id="ai-save-key-btn" class="btn btn-sm btn-primary">Lagre</button>
+      </div>
+      <p class="ai-settings-hint">Lagres lokalt i nettleseren din (localStorage).</p>
+    </div>
+
+    <!-- Quick Prompts Pills -->
+    <div class="ai-quick-prompts" id="ai-quick-prompts">
+      <button class="ai-quick-btn" data-prompt="Jeg ser på dette fondet. Finnes det bedre alternativer når jeg ønsker lavere risiko og kanskje vil være i et litt annet marked, da jeg er overeksponert på teknologi?">🛡️ Mindre Tech / Lavere risiko</button>
+      <button class="ai-quick-btn" data-prompt="Gi meg en analyse av fondet jeg har valgt basert på 1Y, 3Y og 5Y Sharpe, Beta og Maximum Drawdown.">📊 Analyser valgt fond</button>
+      <button class="ai-quick-btn" data-prompt="Hvilke globale indeks-ETF-er i listen gir best risikojustert avkastning (Sharpe og Sortino) kombinert med lave avgifter?">🌍 Beste globale indeks</button>
+      <button class="ai-quick-btn" data-prompt="Hva er de mest defensive ETF-ene i databasen med lavest Max Drawdown og Beta under 0,7?">🛡️ Defensive ETF-er</button>
+    </div>
+
+    <!-- Chat Messages Scroll Container -->
+    <div class="ai-messages-container" id="ai-messages-container">
+      <div class="ai-message ai-message-assistant">
+        <div class="ai-msg-avatar">✨</div>
+        <div class="ai-msg-content">
+          <p>Din menneskehjerne er sløv store deler av døgnet, jeg er en ledende AI-modell som alltid er opplagt, så ikke nøl med å spørre meg. Ingen spørsmål er for dumme... joda, en haug med dumme spørsmål er korka, men jeg er instruert til å si like klisjeer for å virke trivelig 😂</p>
+          <p>Jeg har uansett stålkontroll på alle <strong>2 238 ETF-ene</strong> i databasen din. Klikk på et fond i tabellen eller still meg spørsmål som:</p>
+          <ul>
+            <li><em>«Jeg er overeksponert på teknologi – finnes det alternativer med lavere risiko i andre markeder?»</em></li>
+            <li><em>«Hvilket fond har lavest historisk drawdown blant helse- eller verdi-ETF-er?»</em></li>
+            <li><em>«Sammenlign risiko og tracking error for fondene jeg ser på nå.»</em></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Input Area -->
+    <div class="ai-input-area">
+      <textarea id="ai-user-input" class="ai-textarea" rows="2" placeholder="Spør om risiko, alternativer, diversifisering..."></textarea>
+      <button id="ai-send-btn" class="ai-send-btn" title="Send melding">
+        <span>➤</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating Comparison Dock -->
+  <div id="compare-floating-dock" class="compare-floating-dock" style="display: none;">
+    <div class="dock-container">
+      <div class="dock-left">
+        <span class="dock-badge" id="dock-count-badge">0</span>
+        <span class="dock-text">fond valgt for sammenligning:</span>
+        <div class="dock-chips" id="dock-chips"></div>
+      </div>
+      <div class="dock-right">
+        <button id="btn-clear-compare" class="btn btn-sm btn-outline">Nullstill</button>
+        <button id="btn-launch-compare" class="btn btn-sm btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 600;">⚖️ Sammenlign i Graf Studio</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SheetJS for direkte Excel .xlsx eksport -->
+  <script src="xlsx.full.min.js"></script>
+  <!-- TradingView Lightweight Charts lokalt og offline -->
+  <script src="lightweight-charts.js"></script>
+  <!-- Data Script -->
+  <script src="data.js"></script>
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>

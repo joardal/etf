@@ -1,0 +1,1 @@
+{"morningstar_csv": "C:/Markedsdata/etf_morningstar_komplett.csv", "output_csv": "output/sammenligning.csv", "price_source_priority": ["yahoo", "stooq"], "risk_free_annual": 0.02, "sample_limit": 10, "trading_days": 252, "yahoo_period": "5y", "base_currency": "EUR", "max_age_days": 4}

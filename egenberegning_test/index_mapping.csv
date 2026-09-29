@@ -1,0 +1,166 @@
+﻿Benchmark_Navn,Forslag_Stooq_Ticker,Forslag_Yahoo_Ticker,Valuta,MSCI_Kode,MSCI_Variant,Status,Kommentar
+Global Large-Cap Blend Equity,,,USD,990100,NETR,MSCI-offisiell,MSCI World Net TR (testet 29.09)
+US Large-Cap Blend Equity,,^GSPC,USD,,,VERIFISERT,S&P 500 (testet 29.09)
+Europe Large-Cap Blend Equity,,^STOXX,EUR,,,VERIFISERT,STOXX Europe 600 (testet 29.09)
+Australia & New Zealand Equity,,^AXJO,AUD,,,VERIFISERT,S&P/ASX 200 (testet 29.09)
+Global Emerging Markets Equity,,,USD,664185,NETR,MSCI-offisiell,MSCI EM Net TR (kode testet 29.09)
+Global Flex-Cap Equity,,,USD,891800,NETR,MSCI-offisiell,MSCI ACWI Net TR (kode testet 29.09)
+Global Large-Cap Growth Equity,,,USD,990100,NETR,MSCI-offisiell,Proxy: MSCI World (finnes ingen ren growth-ticker)
+Global Large-Cap Value Equity,,,USD,990100,NETR,MSCI-offisiell,Proxy: MSCI World
+Global Equity Income,,,USD,990100,NETR,MSCI-offisiell,Proxy: MSCI World
+Global Emerging Markets ex-China Equity,,,USD,664185,NETR,MSCI-offisiell,Proxy: MSCI EM
+Global Emerging Markets Small/Mid-Cap Equity,,,USD,664185,NETR,MSCI-offisiell,Proxy: MSCI EM
+US Large-Cap Growth Equity,,^NDX,USD,,,VERIFISERT,"Nasdaq-100 som growth-proxy – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+US Large-Cap Value Equity,,^GSPC,USD,,,VERIFISERT,"Proxy: S&P 500 – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+US Mid-Cap Equity,,^SP400,USD,,,VERIFISERT,"S&P MidCap 400 – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+US Small-Cap Equity,,^RUT,USD,,,VERIFISERT,"Russell 2000 – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+US Flex-Cap Equity,,^GSPC,USD,,,VERIFISERT,"Proxy: S&P 500 – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+US Equity Income,,^GSPC,USD,,,VERIFISERT,"Proxy: S&P 500 – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+Eurozone Large-Cap Equity,,^STOXX50E,EUR,,,VERIFISERT,"EURO STOXX 50 – verifiseres med script [verifisert 2026-09-29: 1257d, EUR]"
+Eurozone Flex-Cap Equity,,^STOXX50E,EUR,,,VERIFISERT,"Proxy: EURO STOXX 50 – verifiseres med script [verifisert 2026-09-29: 1257d, EUR]"
+Europe Large-Cap Growth Equity,,^STOXX,EUR,,,VERIFISERT,"Proxy: STOXX 600 – verifiseres med script [verifisert 2026-09-29: 1257d, EUR]"
+Europe Large-Cap Value Equity,,^STOXX,EUR,,,VERIFISERT,"Proxy: STOXX 600 – verifiseres med script [verifisert 2026-09-29: 1257d, EUR]"
+Europe Flex-Cap Equity,,^STOXX,EUR,,,VERIFISERT,"Proxy: STOXX 600 – verifiseres med script [verifisert 2026-09-29: 1257d, EUR]"
+Europe ex-UK Equity,,^STOXX,EUR,,,VERIFISERT,"Proxy: STOXX 600 (inkl. UK, naer nok) – verifiseres [verifisert 2026-09-29: 1257d, EUR]"
+Europe Equity Income,,^STOXX,EUR,,,VERIFISERT,"Proxy: STOXX 600 – verifiseres med script [verifisert 2026-09-29: 1257d, EUR]"
+Germany Equity,,^GDAXI,EUR,,,VERIFISERT,"DAX – verifiseres med script [verifisert 2026-09-29: 1275d, EUR]"
+Germany Small/Mid-Cap Equity,,^MDAXI,EUR,,,VERIFISERT,"MDAX – verifiseres med script [verifisert 2026-09-29: 1275d, EUR]"
+France Equity,,^FCHI,EUR,,,VERIFISERT,"CAC 40 – verifiseres med script [verifisert 2026-09-29: 1281d, EUR]"
+Spain Equity,,^IBEX,EUR,,,VERIFISERT,"IBEX 35 – verifiseres med script [verifisert 2026-09-29: 1279d, EUR]"
+Italy Equity,,FTSEMIB.MI,EUR,,,VERIFISERT,"FTSE MIB – verifiseres med script [verifisert 2026-09-29: 1271d, EUR]"
+UK Large-Cap Equity,,^FTSE,GBP,,,VERIFISERT,"FTSE 100 – verifiseres med script [verifisert 2026-09-29: 1262d, GBP]"
+UK Mid-Cap Equity,,^FTMC,GBP,,,VERIFISERT,"FTSE 250 – verifiseres med script [verifisert 2026-09-29: 1262d, GBP]"
+UK Equity Income,,^FTSE,GBP,,,VERIFISERT,"Proxy: FTSE 100 – verifiseres med script [verifisert 2026-09-29: 1262d, GBP]"
+Switzerland Equity,,^SSMI,CHF,,,VERIFISERT,"SMI – verifiseres med script [verifisert 2026-09-29: 1256d, CHF]"
+Japan Large-Cap Blend Equity,,^N225,JPY,,,VERIFISERT,"Nikkei 225 – verifiseres med script [verifisert 2026-09-29: 1222d, JPY]"
+China Equity,,^HSI,HKD,,,VERIFISERT,"Hang Seng – verifiseres med script [verifisert 2026-09-29: 1228d, HKD]"
+China Equity - A Shares,,000001.SS,CNY,,,VERIFISERT,"Shanghai Composite – verifiseres med script [verifisert 2026-09-29: 1212d, CNY]"
+Taiwan Large-Cap Equity,,^TWII,TWD,,,VERIFISERT,"TWSE – verifiseres med script [verifisert 2026-09-29: 1214d, TWD]"
+Korea Equity,,^KS11,KRW,,,VERIFISERT,"KOSPI – verifiseres med script [verifisert 2026-09-29: 1221d, KRW]"
+India Equity,,^BSESN,INR,,,VERIFISERT,"SENSEX – verifiseres med script [verifisert 2026-09-29: 1234d, INR]"
+Brazil Equity,,^BVSP,BRL,,,VERIFISERT,"Bovespa – verifiseres med script [verifisert 2026-09-29: 1248d, BRL]"
+Canada Equity,,^GSPTSE,CAD,,,VERIFISERT,"S&P/TSX Composite – verifiseres med script [verifisert 2026-09-29: 1255d, CAD]"
+Singapore Equity,,^STI,SGD,,,VERIFISERT,"STI – verifiseres med script [verifisert 2026-09-29: 1256d, SGD]"
+Sweden Equity,,^OMXSPI,SEK,,,VERIFISERT,OMX Stockholm PI (alle storrelser) [proxy-indeks testet 2026-09-29]
+Denmark Equity,,^OMXC25,DKK,,,VERIFISERT,OMX Copenhagen 25 [proxy-indeks testet 2026-09-29]
+Austria Equity,,^ATX,EUR,,,VERIFISERT,"ATX – verifiseres med script [verifisert 2026-09-29: 1271d, EUR]"
+Sector Equity Technology,,^NDX,USD,,,VERIFISERT,"Nasdaq-100 som tech-proxy – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Industrial Materials,,XLB,USD,,,VERIFISERT,"Sektor-ETF som proxy (indeks kun kvote) – verifiseres [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Communications,,XLC,USD,,,VERIFISERT,"Sektor-ETF som proxy (indeks kun kvote) – verifiseres [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Consumer Goods & Services,,XLY,USD,,,VERIFISERT,"Sektor-ETF som proxy (indeks kun kvote) – verifiseres [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Healthcare,,XLV,USD,,,VERIFISERT,"Sektor-ETF som proxy (indeks kun kvote) – verifiseres [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Financial Services,,XLF,USD,,,VERIFISERT,"Sektor-ETF som proxy (indeks kun kvote) – verifiseres [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Energy,,XLE,USD,,,VERIFISERT,"Sektor-ETF som proxy (indeks kun kvote) – verifiseres [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Utilities,,^DJU,USD,,,VERIFISERT,"Dow Jones Utility – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+Sector Equity Biotechnology,,^NBI,USD,,,VERIFISERT,"Nasdaq Biotech – verifiseres med script [verifisert 2026-09-29: 1254d, USD]"
+Commodities - Broad Basket,,^SPGSCI,USD,,,VERIFISERT,"S&P GSCI – verifiseres med script [verifisert 2026-09-29: 1255d, USD]"
+Commodities - Industrial & Broad Metals,,^SPGSCI,USD,,,VERIFISERT,"Proxy: bred GSCI (subindeks mangler historikk) – verifiseres [verifisert 2026-09-29: 1255d, USD]"
+Digital Assets,,BTC-USD,USD,,,VERIFISERT,"Bitcoin spot – verifiseres med script (1 fond) [verifisert 2026-09-29: 1826d, USD]"
+Nordic Equity,,^OMXSPI,SEK,,,VERIFISERT,"[proxy: Sverige-dominert, kun svensk PI finnes i Yahoo] [proxy-indeks testet 2026-09-29]"
+Europe Small-Cap Equity,,^STOXX,EUR,,,VERIFISERT,"STOXX Europe 600 [målt: 0.040 vs IJT 0.705, n=5]"
+Europe Mid-Cap Equity,,^STOXX,EUR,,,VERIFISERT,"[proxy: STOXX Europe 600, ingen europeisk mid-cap-indeks] [proxy-indeks testet 2026-09-29]"
+Eurozone Mid-Cap Equity,,^STOXX50E,EUR,,,VERIFISERT,[proxy: EURO STOXX 50] [proxy-indeks testet 2026-09-29]
+Eurozone Small-Cap Equity,,^STOXX50E,EUR,,,VERIFISERT,"[proxy: EURO STOXX 50, liten verdienivå-eksponering] [proxy-indeks testet 2026-09-29]"
+Japan Small/Mid-Cap Equity,,1306.T,JPY,,,VERIFISERT,"[proxy: TOPIX, ingen JP small/mid-indeks i Yahoo] [proxy-indeks testet 2026-09-29]"
+UK Small-Cap Equity,,^FTAS,GBP,,,VERIFISERT,FTSE All-Share (småselskaper inkl.) [proxy-indeks testet 2026-09-29]
+Sweden Small/Mid-Cap Equity,,^OMXSPI,SEK,,,VERIFISERT,[proxy: hela OMX Stockholm PI] [proxy-indeks testet 2026-09-29]
+South Africa Equity,,IEMG,USD,,,VERIFISERT,"[proxy: MSCI EM, ingen SAfrika-indeks i Yahoo] [proxy-indeks testet 2026-09-29]"
+Africa Equity,,IEMG,USD,,,VERIFISERT,"[proxy: MSCI EM, ingen Afrika-indeks i Yahoo] [proxy-indeks testet 2026-09-29]"
+Africa & Middle East Equity,,IEMG,USD,,,VERIFISERT,"[proxy: MSCI EM, ingen Africa/ME-indeks i Yahoo] [proxy-indeks testet 2026-09-29]"
+Global Frontier Markets Equity,,IEMG,USD,,,VERIFISERT,"[proxy: MSCI EM, ingen frontier-indeks i Yahoo] [proxy-indeks testet 2026-09-29]"
+Vietnam Equity,,^HSI,HKD,,,VERIFISERT,"[proxy: Hang Seng, ingen Vietnam-indeks i Yahoo] [proxy-indeks testet 2026-09-29]"
+Indonesia Equity,,^JKSE,IDR,,,VERIFISERT,Jakarta Composite [proxy-indeks testet 2026-09-29]
+Latin America Equity,,ILF,USD,,,VERIFISERT,iShares Latin America 40 [proxy-indeks testet 2026-09-29]
+Emerging Europe ex-Russia Equity,,IEMG,USD,,,VERIFISERT,[proxy: MSCI EM dekker ikke Russland] [proxy-indeks testet 2026-09-29]
+Asia ex-Japan Equity,,EPP,USD,,,VERIFISERT,[proxy: MSCI Pacific ex Japan som Asia ex-Japan-proxy] [proxy-indeks testet 2026-09-29]
+Asia-Pacific Equity,,EPP,USD,,,VERIFISERT,[proxy: MSCI Pacific ex Japan] [proxy-indeks testet 2026-09-29]
+Asia-Pacific ex-Japan Equity,,EPP,USD,,,VERIFISERT,MSCI Pacific ex Japan [proxy-indeks testet 2026-09-29]
+Pacific ex-Japan Equity,,EPP,USD,,,VERIFISERT,MSCI Pacific ex Japan [proxy-indeks testet 2026-09-29]
+Global Small/Mid-Cap Equity,,IUSN.DE,EUR,,,VERIFISERT,iShares MSCI World Small Cap [proxy-indeks testet 2026-09-29]
+Islamic Global Equity,,IUSQ.DE,EUR,,,VERIFISERT,"[proxy: MSCI ACWI, ingen islamisk indeks i Yahoo] [proxy-indeks testet 2026-09-29]"
+Islamic Global Sukuk,,AGGH.MI,EUR,,,VERIFISERT,[ingen sukuk-indeks: globalt aggregat EUR-hedget] [proxy-indeks testet 2026-09-29]
+Other Equity,,IUSQ.DE,EUR,,,VERIFISERT,[proxy: MSCI ACWI som bredt verdensomfang] [proxy-indeks testet 2026-09-29]
+Sector Equity Natural Resources,,XLB,USD,,,VERIFISERT,"[proxy: Materials, ingen råvaresektor-indeks] [proxy-indeks testet 2026-09-29]"
+Sector Equity Alternative Energy,,ICLN,USD,,,VERIFISERT,iShares Global Clean Energy [proxy-indeks testet 2026-09-29]
+Sector Equity Ecology,,ICLN,USD,,,VERIFISERT,[proxy: Global Clean Energy som ekologi-proxy] [proxy-indeks testet 2026-09-29]
+Sector Equity Water,,PHO,USD,,,VERIFISERT,Invesco Water Resources [proxy-indeks testet 2026-09-29]
+Sector Equity Agriculture,,DBA,USD,,,VERIFISERT,Invesco DB Agriculture [proxy-indeks testet 2026-09-29]
+Sector Equity Infrastructure,,PAVE,USD,,,VERIFISERT,Global X US Infrastructure Development [proxy-indeks testet 2026-09-29]
+Sector Equity Listed Private Equity,,PSP,USD,,,VERIFISERT,Invesco Global Listed Private Equity [proxy-indeks testet 2026-09-29]
+Sector Equity Precious Metals,,GDX,USD,,,VERIFISERT,"VanEck Gold Miners (edle metaller, aksjer) [proxy-indeks testet 2026-09-29]"
+Property - Indirect Global,,VNQ,USD,,,VERIFISERT,[proxy: US REIT - global eiendom er NA-tungt] [proxy-indeks testet 2026-09-29]
+Property - Indirect Europe,,EXI5.DE,EUR,,,VERIFISERT,iShares STOXX Europe 600 Real Estate [proxy-indeks testet 2026-09-29]
+Property - Indirect Asia,,IASP.L,GBP,,,VERIFISERT,iShares Asia Property Yield [proxy-indeks testet 2026-09-29]
+Property - Indirect Other,,VNQ,USD,,,VERIFISERT,[proxy: US REIT] [proxy-indeks testet 2026-09-29]
+Property - Indirect North America,,VNQ,USD,,,VERIFISERT,Vanguard Real Estate [proxy-indeks testet 2026-09-29]
+Commodities - Energy,,XLE,USD,,,VERIFISERT,"[proxy: Energy-aksjer, ingen ren energiråvare-indeks] [proxy-indeks testet 2026-09-29]"
+Other Bond,,AGGH.MI,EUR,,,VERIFISERT,[proxy: Global Aggregate EUR-hedget som bredt obligasjonsomfang] [proxy-indeks testet 2026-09-29]
+EUR Government Bond,,AGGH.MI,EUR,,,VERIFISERT,"iShares Core Global Aggregate EUR Hedget [målt: 0.077 vs IBGL.MI 0.544, n=47]"
+USD Government Bond,,GOVT,USD,,,VERIFISERT,iShares US Treasury Bond [proxy-indeks testet 2026-09-29]
+EUR Corporate Bond,,IHYG.L,EUR,,,VERIFISERT,"iShares Global High Yield Corporate EUR [målt: 0.128 vs AGGH.MI 0.219, n=29]"
+USD Corporate Bond,,LQD,USD,,,VERIFISERT,iShares iBoxx USD Investment Grade Corporate [proxy-indeks testet 2026-09-29]
+Global Government Bond,,IGLO.L,USD,,,VERIFISERT,iShares Global Government Bond (USD) [proxy-indeks testet 2026-09-29]
+Global Corporate Bond,,AGGU.L,USD,,,VERIFISERT,iShares Core Global Aggregate (USD-hedget) [proxy-indeks testet 2026-09-29]
+Global Emerging Markets Bond,,EMB,USD,,,VERIFISERT,iShares EM Bond (USD) [proxy-indeks testet 2026-09-29]
+EUR High Yield Bond,,IHYG.L,EUR,,,VERIFISERT,iShares Global High Yield Corporate Bond (EUR) [proxy-indeks testet 2026-09-29]
+USD High Yield Bond,,HYG,USD,,,VERIFISERT,iShares iBoxx USD High Yield Corporate [proxy-indeks testet 2026-09-29]
+Global High Yield Bond,,HYG,USD,,,VERIFISERT,"iShares iBoxx USD High Yield [målt: 0.220 vs GHYG.L 0.389, n=7]"
+Global High Yield Bond - EUR Hedged,,IHYG.L,EUR,,,VERIFISERT,iShares Global High Yield (EUR-hedget) [proxy-indeks testet 2026-09-29]
+Global Government Bond - EUR Hedged,,AGGH.MI,EUR,,,VERIFISERT,[hedget -> ubesk.]: EUR-hedget globalt aggregat [proxy-indeks testet 2026-09-29]
+Global Corporate Bond - EUR Hedged,,AGGH.MI,EUR,,,VERIFISERT,[hedget -> ubesk.: EUR-hedget globalt aggregat] [proxy-indeks testet 2026-09-29]
+Global Corporate Bond - USD Hedged,,AGGU.L,USD,,,VERIFISERT,[hedget -> ubesk.] [proxy-indeks testet 2026-09-29]
+Global Government Bond - USD Hedged,,IGLO.L,USD,,,VERIFISERT,[hedget -> ubesk.] [proxy-indeks testet 2026-09-29]
+Global Diversified Bond,,AGGU.L,USD,,,VERIFISERT,iShares Core Global Aggregate (USD-hedget) [proxy-indeks testet 2026-09-29]
+Global Diversified Bond - EUR Hedged,,AGGH.MI,EUR,,,VERIFISERT,iShares Core Global Aggregate EUR Hedged [proxy-indeks testet 2026-09-29]
+EUR Diversified Bond,,AGGH.MI,EUR,,,VERIFISERT,iShares Core Global Aggregate EUR Hedged [proxy-indeks testet 2026-09-29]
+USD Diversified Bond,,AGG,USD,,,VERIFISERT,iShares Core US Aggregate Bond [proxy-indeks testet 2026-09-29]
+EUR Bond - Long Term,,IBGL.MI,EUR,,,VERIFISERT,iShares Euro Government Bond 15-30yr [proxy-indeks testet 2026-09-29]
+EUR Flexible Bond,,AGGH.MI,EUR,,,VERIFISERT,[proxy: Global Aggregate EUR Hedged] [proxy-indeks testet 2026-09-29]
+USD Flexible Bond,,AGG,USD,,,VERIFISERT,[proxy: iShares Core US Aggregate Bond] [proxy-indeks testet 2026-09-29]
+EUR Inflation-Linked Bond,,AGGH.MI,EUR,,,VERIFISERT,[ingen EUR-linker-indeks i Yahoo: globalt aggregat EUR-hedget] [proxy-indeks testet 2026-09-29]
+USD Inflation-Linked Bond,,AGG,USD,,,VERIFISERT,[ingen USD-linker-indeks funnet: US Aggregate som proxy] [proxy-indeks testet 2026-09-29]
+Global Inflation-Linked Bond,,AGGU.L,USD,,,VERIFISERT,[ingen global linker-indeks: globalt aggregat] [proxy-indeks testet 2026-09-29]
+Global Inflation-Linked Bond - EUR Hedged,,AGGH.MI,EUR,,,VERIFISERT,[ingen globalt EUR-linker: globalt agg EUR-hedget] [proxy-indeks testet 2026-09-29]
+Global Emerging Markets Bond - EUR Hedged,,EMLC.L,USD,,,VERIFISERT,"VanEck EM Local Currency Bond [målt: 0.083 vs EMB 0.432, n=6; hedget fond folger lokalvaluta bedre]"
+Global Emerging Markets Bond - Local Currency,,EMLC.L,USD,,,VERIFISERT,VanEck EM Local Currency Bond [proxy-indeks testet 2026-09-29]
+Global Emerging Markets Corporate Bond,,EMB,USD,,,VERIFISERT,"[proxy: EM Bond, ingen egen EM corp-indeks] [proxy-indeks testet 2026-09-29]"
+Global Emerging Markets Corporate Bond - EUR Hedged,,EMB,USD,,,VERIFISERT,[proxy + hedget -> ubesk.] [proxy-indeks testet 2026-09-29]
+Global Emerging Markets Small/Mid-Cap Equity,,,USD,664185,NETR,MSCI-offisiell,Proxy: MSCI EM
+RMB Bond - Onshore,,CNYB.L,GBP,,,VERIFISERT,iShares China CNY Bond [proxy-indeks testet 2026-09-29]
+Asia Bond - Local Currency,,EMLC.L,USD,,,VERIFISERT,"[proxy: EM Local Currency, ingen Asia-LC-indeks] [proxy-indeks testet 2026-09-29]"
+EUR Subordinated Bond,,AGGH.MI,EUR,,,VERIFISERT,[ingen EUR-subordinert indeks: globalt aggregat EUR-hedget] [proxy-indeks testet 2026-09-29]
+EUR Moderate Allocation - Global,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+EUR Aggressive Allocation - Global,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+EUR Cautious Allocation - Global,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+USD Moderate Allocation,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+USD Aggressive Allocation,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+Other Allocation,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+CHF Aggressive Allocation,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+EUR Moderate Allocation,,,,,,HOPP OVER,Fleraktiv – ingen enkeltindeks gir mening
+Target Date 2026 - 2030,,,,,,HOPP OVER,Malfond – ingen enkeltindeks gir mening
+Target Date 2031 - 2035,,,,,,HOPP OVER,Malfond – ingen enkeltindeks gir mening
+Target Date 2036 - 2040,,,,,,HOPP OVER,Malfond – ingen enkeltindeks gir mening
+Trading - Leveraged/Inverse Equity,,,,,,HOPP OVER,Gearet – gir ikke mening mot spot-indeks
+Trading - Leveraged/Inverse Fixed Income,,,,,,HOPP OVER,Gearet – gir ikke mening mot spot-indeks
+Options Trading,,,,,,HOPP OVER,Strategi – ingen enkeltindeks gir mening
+Relative Value Arbitrage,,,,,,HOPP OVER,Strategi – ingen enkeltindeks gir mening
+Alternative Other,,,,,,HOPP OVER,Strategi – ingen enkeltindeks gir mening
+Other,,,,,,HOPP OVER,Samlekategori uten mening for relativtall
+Money Market - Other,,,,,,HOPP OVER,Kontantlignende – relativtall er stoy
+EUR Money Market,,,,,,HOPP OVER,Kontantlignende – relativtall er stoy
+EUR Money Market - Short Term,,,,,,HOPP OVER,Kontantlignende – relativtall er stoy
+USD Ultra Short-Term Bond,,,,,,HOPP OVER,Kontantlignende – relativtall er stoy
+EUR Ultra Short-Term Bond,,,,,,HOPP OVER,Kontantlignende – relativtall er stoy
+EUR Government Bond - Short Term,,,,,,HOPP OVER,Kort durasjon – relativtall er stoy
+USD Government Bond - Short Term,,,,,,HOPP OVER,Kort durasjon – relativtall er stoy
+USD Corporate Bond - Short Term,,,,,,HOPP OVER,Kort durasjon – relativtall er stoy
+EUR Corporate Bond - Short Term,,,,,,HOPP OVER,Kort durasjon – relativtall er stoy
+Fixed Term Bond,,,,,,HOPP OVER,Maalforfall – relativtall mot bred indeks er misvisende
+Convertible Bond - Global,,AGGH.MI,EUR,,,VERIFISERT,[ingen konvertibel-indeks: globalt aggregat] [proxy-indeks testet 2026-09-29]
+"Convertible Bond - Global, EUR Hedged",,AGGH.MI,EUR,,,VERIFISERT,[ingen konvertibel-indeks: globalt agg EUR-hedget] [proxy-indeks testet 2026-09-29]
+GBP Government Bond,,IGLS.L,GBP,,,VERIFISERT,iShares UK Gilts 0-5yr [proxy-indeks testet 2026-09-29]
+GBP Corporate Bond,,IGLS.L,GBP,,,VERIFISERT,"[proxy: ingen GBP corp-indeks, UK Gilts] [proxy-indeks testet 2026-09-29]"
+GBP Corporate Bond - Short Term,,,,,,HOPP OVER,Kort durasjon – relativtall er stoy
+SEK Diversified Bond,,AGGH.MI,EUR,,,VERIFISERT,[ingen SEK-indeks i Yahoo: globalt aggregat EUR-hedget] [proxy-indeks testet 2026-09-29]
+JPY Bond,,2510.T,JPY,,,VERIFISERT,NEXT FUNDS Japan Bond (NOMURA-BPI) [proxy-indeks testet 2026-09-29]
+USD Diversified Bond,,AGG,USD,,,VERIFISERT,iShares Core US Aggregate Bond [proxy-indeks testet 2026-09-29]

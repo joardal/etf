@@ -1,0 +1,75 @@
+﻿kategori,indeks,n,median_abs_diff,p75_abs_diff,median_r2
+Asia-Pacific Equity,IEMG,6,0.074,0.106,0.336
+Asia-Pacific Equity,EPP,6,0.373,0.42,0.505
+Asia-Pacific ex-Japan Equity,IUSQ.DE,6,0.058,0.11,0.527
+Asia-Pacific ex-Japan Equity,IEMG,6,0.164,0.198,0.817
+Asia-Pacific ex-Japan Equity,EPP,6,0.34,0.35,0.256
+EUR Bond - Long Term,IBGL.MI,8,0.157,0.176,0.978
+EUR Bond - Long Term,AGGH.MI,8,1.008,1.132,0.716
+EUR Corporate Bond,IHYG.L,29,0.128,0.14,0.706
+EUR Corporate Bond,AGGH.MI,29,0.219,0.238,0.759
+EUR Corporate Bond,LQD,29,0.759,0.784,0.279
+EUR Diversified Bond,AGGH.MI,8,0.02,0.058,0.789
+EUR Diversified Bond,IBGL.MI,8,0.589,0.598,0.929
+EUR Diversified Bond,AGGU.L,8,0.796,0.807,0.074
+EUR Government Bond,AGGH.MI,47,0.077,0.096,0.77
+EUR Government Bond,IGLO.L,47,0.403,0.439,0.403
+EUR Government Bond,IBGL.MI,47,0.544,0.566,0.93
+Europe Small-Cap Equity,^STOXX,5,0.04,0.11,0.69
+Europe Small-Cap Equity,IUSN.DE,5,0.446,0.46,0.382
+Europe Small-Cap Equity,IJT,5,0.705,0.736,0.185
+Global Corporate Bond - EUR Hedged,AGGH.MI,4,0.204,0.23,0.95
+Global Corporate Bond - EUR Hedged,AGGU.L,4,0.832,0.842,0.034
+Global Diversified Bond,AGGH.MI,6,0.246,0.279,0.402
+Global Diversified Bond,AGGU.L,6,0.338,0.364,0.701
+Global Diversified Bond - EUR Hedged,AGGH.MI,9,0.025,0.038,0.987
+Global Diversified Bond - EUR Hedged,AGGU.L,9,0.884,0.892,0.037
+Global Emerging Markets Bond,EMB,15,0.037,0.047,0.931
+Global Emerging Markets Bond,EMLC.L,15,0.166,0.189,0.62
+Global Emerging Markets Bond,PCY,15,0.311,0.321,0.847
+Global Emerging Markets Bond - EUR Hedged,EMLC.L,6,0.083,0.12,0.378
+Global Emerging Markets Bond - EUR Hedged,EMB,6,0.432,0.441,0.295
+Global Government Bond - EUR Hedged,AGGH.MI,2,0.046,0.051,0.963
+Global Government Bond - EUR Hedged,IGLO.L,2,0.576,0.581,0.423
+Global High Yield Bond,HYG,7,0.22,0.29,0.817
+Global High Yield Bond,IHYG.L,7,0.23,0.25,0.251
+Global High Yield Bond,GHYG.L,7,0.389,0.392,0.341
+Global High Yield Bond - EUR Hedged,IHYG.L,5,0.094,0.12,0.787
+Global High Yield Bond - EUR Hedged,GHYG.L,5,0.316,0.371,0.678
+Global Small/Mid-Cap Equity,IUSN.DE,3,0.175,0.178,0.997
+Global Small/Mid-Cap Equity,^MID,3,0.291,0.293,0.883
+Global Small/Mid-Cap Equity,IJT,3,0.475,0.478,0.808
+Islamic Global Equity,IUSQ.DE,2,0.151,0.152,0.882
+Islamic Global Equity,ACWI,2,0.206,0.208,0.812
+Japan Small/Mid-Cap Equity,EPP,1,0.385,0.385,0.36
+Japan Small/Mid-Cap Equity,1348.T,1,0.615,0.615,0.768
+Japan Small/Mid-Cap Equity,1306.T,1,0.685,0.685,0.724
+Latin America Equity,ILF,2,0.006,0.007,0.94
+Latin America Equity,^MXX,2,0.429,0.43,0.426
+Nordic Equity,^OMXSPI,5,0.274,0.376,0.602
+Nordic Equity,IEMG,5,0.439,0.501,0.191
+Pacific ex-Japan Equity,EPP,8,0.052,0.078,0.925
+Pacific ex-Japan Equity,IEMG,8,0.492,0.522,0.235
+Property - Indirect Global,VNQ,6,0.12,0.137,0.881
+Property - Indirect Global,IUSQ.DE,6,0.284,0.336,0.375
+Property - Indirect Global,EXI5.DE,6,0.447,0.469,0.496
+Sector Equity Alternative Energy,IUSQ.DE,13,0.634,0.685,0.266
+Sector Equity Alternative Energy,ICLN,13,0.849,0.995,0.815
+Sector Equity Alternative Energy,TAN,13,1.169,1.335,0.734
+Sector Equity Ecology,IUSQ.DE,4,0.149,0.221,0.499
+Sector Equity Ecology,ICLN,4,0.749,0.806,0.408
+Sector Equity Ecology,TAN,4,0.869,1.051,0.351
+Sector Equity Infrastructure,PAVE,7,0.482,0.583,0.563
+Sector Equity Infrastructure,XLU,7,0.519,0.557,0.344
+Sector Equity Infrastructure,GRID,7,0.552,0.643,0.558
+Sector Equity Natural Resources,XLB,4,0.563,0.597,0.191
+Sector Equity Natural Resources,REMX,4,0.955,1.01,0.303
+Sector Equity Natural Resources,XLE,4,1.165,1.227,0.035
+Sector Equity Precious Metals,GDX,4,0.105,0.111,0.964
+Sector Equity Precious Metals,GDXJ,4,0.205,0.221,0.942
+Sector Equity Precious Metals,GLD,4,0.746,0.761,0.665
+Sector Equity Water,PHO,4,0.168,0.208,0.788
+Sector Equity Water,ICLN,4,0.893,0.918,0.052
+USD Government Bond,IGLO.L,20,0.069,0.152,0.764
+USD Government Bond,AGGU.L,20,0.085,0.148,0.893
+USD Government Bond,GOVT,20,0.086,0.096,0.922
