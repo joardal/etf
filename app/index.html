@@ -101,79 +101,43 @@
     </div>
   </header>
 
+  <!-- Hovednavigasjon mellom Screener og Portefølje-Studio -->
+  <nav class="app-main-nav">
+    <div class="main-nav-container">
+      <button type="button" class="main-nav-tab active" data-view="screener" id="tab-nav-screener">
+        <span class="main-nav-icon">📊</span>
+        <span class="main-nav-label">ETF Screener & Marked</span>
+      </button>
+      <button type="button" class="main-nav-tab" data-view="portfolio" id="tab-nav-portfolio">
+        <span class="main-nav-icon">💼</span>
+        <span class="main-nav-label">Portefølje-Studio</span>
+        <span class="main-nav-badge" id="main-nav-port-count">0 fond</span>
+      </button>
+    </div>
+  </nav>
+
   <!-- Main Container -->
   <main class="main-container">
 
-    <!-- Legg inn din portefølje seksjon -->
-    <section class="user-portfolio-card" id="user-portfolio-card">
-      <div class="user-port-header">
-        <div class="user-port-title-group">
-          <div class="user-port-tag">💼 Egen Portefølje</div>
-          <h3 class="user-port-title">Legg inn din portefølje</h3>
-          <span class="user-port-sub">Søk opp ETF-ene du eier, angi andeler (stk) eller investert beløp, og analyser samlet risiko, historisk avkastning og diversifisering.</span>
+    <!-- Fane 1: Screener & Marked -->
+    <div id="view-pane-screener" class="app-view-pane active">
+
+      <!-- Snarvei-banner til aktiv portefølje -->
+      <div id="portfolio-quick-banner" class="port-screener-shortcut" style="display: none;">
+        <div class="port-shortcut-left">
+          <span class="port-shortcut-icon">💼</span>
+          <span>Aktiv portefølje: <strong id="shortcut-port-name">Portefølje 1</strong> (<span id="shortcut-port-count">0 fond</span>, <span id="shortcut-port-val">0 kr</span>)</span>
         </div>
-        <div class="user-port-actions">
-          <button id="btn-user-port-clear" class="btn btn-sm btn-ghost" style="display: none;" title="Tøm alle valgte fond i din portefølje">🗑️ Tøm</button>
-          <button id="btn-user-port-analyze" class="btn btn-sm btn-primary btn-analyze-portfolio" disabled title="Legg til minst 2 fond for å starte porteføljeanalysen">
-            📊 Analyser din portefølje
-          </button>
-        </div>
+        <button id="btn-goto-portfolio-studio" class="btn btn-xs btn-primary">Gå til Portefølje-Studio →</button>
       </div>
 
-      <!-- Inntasting & Søkefelt -->
-      <div class="user-port-form-row">
-        <!-- Søk etter ETF -->
-        <div class="user-port-search-col">
-          <label class="user-port-label" for="user-port-search-input">Velg ETF fra markedet:</label>
-          <div class="user-port-search-wrap">
-            <input type="text" id="user-port-search-input" class="user-port-search-input" placeholder="🔍 Søk ticker, ISIN eller navn (f.eks. VWCE, SXR8, iShares)..." autocomplete="off">
-            <button id="user-port-search-clear" class="btn-input-clear" style="display: none;" type="button">&times;</button>
-            <div id="user-port-search-results" class="user-port-dropdown" style="display: none;"></div>
-          </div>
-          <div id="user-port-selected-etf" class="user-port-selected-badge" style="display: none;">
-            <span id="user-port-selected-ticker" class="font-bold text-indigo"></span>
-            <span id="user-port-selected-name" class="text-muted text-sm"></span>
-            <span id="user-port-selected-price" class="badge badge-official"></span>
-            <button id="user-port-cancel-selection" class="btn-cancel-select" type="button" title="Fjern valg">&times;</button>
-          </div>
+      <!-- KPI Summary Cards -->
+      <section class="kpi-grid">
+        <div class="kpi-card" id="kpi-total">
+          <div class="kpi-label">Aktive Treff</div>
+          <div class="kpi-value" id="kpi-val-count">0</div>
+          <div class="kpi-sub" id="kpi-sub-count">av 2 238 totalt</div>
         </div>
-
-        <!-- Velg enhet: Andeler vs Beløp -->
-        <div class="user-port-unit-col">
-          <label class="user-port-label">Inntastingstype:</label>
-          <div class="user-port-unit-toggle">
-            <button type="button" class="unit-toggle-btn active" data-unit="shares" id="unit-btn-shares">Andeler (stk)</button>
-            <button type="button" class="unit-toggle-btn" data-unit="amount" id="unit-btn-amount">Beløp (kr / €)</button>
-          </div>
-        </div>
-
-        <!-- Verdi / Antall input -->
-        <div class="user-port-val-col">
-          <label class="user-port-label" id="user-port-val-label" for="user-port-qty-input">Antall andeler:</label>
-          <div class="user-port-input-group">
-            <input type="number" id="user-port-qty-input" class="user-port-num-input" placeholder="f.eks. 50" min="0.01" step="any">
-            <button type="button" id="btn-user-port-add" class="btn btn-secondary user-port-add-btn" disabled>+ Legg til</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Valgte fond i porteføljen (Liste / Chips) -->
-      <div id="user-port-holdings-container" class="user-port-holdings-wrap" style="display: none;">
-        <div class="user-port-holdings-header">
-          <span class="user-port-holdings-count" id="user-port-holdings-count">Dine beholdninger (0 fond)</span>
-          <span class="user-port-total-value font-bold text-indigo" id="user-port-total-value">Totalverdi: 0 kr</span>
-        </div>
-        <div class="user-port-chips-grid" id="user-port-chips-grid"></div>
-      </div>
-    </section>
-
-    <!-- KPI Summary Cards -->
-    <section class="kpi-grid">
-      <div class="kpi-card" id="kpi-total">
-        <div class="kpi-label">Aktive Treff</div>
-        <div class="kpi-value" id="kpi-val-count">0</div>
-        <div class="kpi-sub" id="kpi-sub-count">av 2 238 totalt</div>
-      </div>
       <div class="kpi-card" id="kpi-return">
         <div class="kpi-label">Snitt Avkastning 12M</div>
         <div class="kpi-value text-emerald" id="kpi-val-return">—</div>
@@ -453,8 +417,210 @@
         </div>
       </div>
     </section>
+  </div> <!-- Slutt på view-pane-screener -->
 
-  </main>
+  <!-- Fane 2: Portefølje-Studio (Egen dedikert fane for multi-porteføljer, mandater og analyse) -->
+  <div id="view-pane-portfolio" class="app-view-pane" style="display: none;">
+    
+    <!-- Porteføljevelger & Admin Card -->
+    <section class="portfolio-studio-card" id="user-portfolio-card">
+      
+      <div class="port-studio-topbar">
+        <div class="port-studio-title-block">
+          <div class="user-port-tag">💼 Portefølje-Studio</div>
+          <div class="port-active-name-wrap">
+            <h2 class="port-active-title" id="port-active-name-display">Portefølje 1</h2>
+            <div class="port-title-actions">
+              <button id="btn-port-rename" class="btn btn-xs btn-outline" title="Endre navn på denne porteføljen">✏️ Endre navn</button>
+              <button id="btn-port-duplicate" class="btn btn-xs btn-outline" title="Dupliser denne porteføljen for å teste alternative vekter">📋 Dupliser</button>
+              <button id="btn-port-delete" class="btn btn-xs btn-outline text-rose" title="Slett denne porteføljen">🗑️ Slett</button>
+            </div>
+          </div>
+          <p class="port-studio-sub">Administrer inntil 5 ulike porteføljer, definer krav til risikoprofil og sektorspredning, og få AI til å evaluere sammensetningen.</p>
+        </div>
+
+        <!-- Portefølje Tabs (Multi-portefølje opptil 5 stk) -->
+        <div class="portfolio-profile-tabs" id="portfolio-profile-tabs">
+          <!-- Genereres dynamisk av JS -->
+        </div>
+      </div>
+
+      <!-- Inntasting & Søkefelt for valgt portefølje -->
+      <div class="user-port-form-row">
+        <!-- Søk etter ETF -->
+        <div class="user-port-search-col">
+          <label class="user-port-label" for="user-port-search-input">Legg til ETF i porteføljen:</label>
+          <div class="user-port-search-wrap">
+            <input type="text" id="user-port-search-input" class="user-port-search-input" placeholder="🔍 Søk ticker, ISIN eller navn (f.eks. VWCE, SXR8, iShares)..." autocomplete="off">
+            <button id="user-port-search-clear" class="btn-input-clear" style="display: none;" type="button">&times;</button>
+            <div id="user-port-search-results" class="user-port-dropdown" style="display: none;"></div>
+          </div>
+          <div id="user-port-selected-etf" class="user-port-selected-badge" style="display: none;">
+            <span id="user-port-selected-ticker" class="font-bold text-indigo"></span>
+            <span id="user-port-selected-name" class="text-muted text-sm"></span>
+            <span id="user-port-selected-price" class="badge badge-official"></span>
+            <button id="user-port-cancel-selection" class="btn-cancel-select" type="button" title="Fjern valg">&times;</button>
+          </div>
+        </div>
+
+        <!-- Velg enhet: Andeler vs Beløp -->
+        <div class="user-port-unit-col">
+          <label class="user-port-label">Inntastingstype:</label>
+          <div class="user-port-unit-toggle">
+            <button type="button" class="unit-toggle-btn active" data-unit="shares" id="unit-btn-shares">Andeler (stk)</button>
+            <button type="button" class="unit-toggle-btn" data-unit="amount" id="unit-btn-amount">Beløp (kr / €)</button>
+          </div>
+        </div>
+
+        <!-- Verdi / Antall input -->
+        <div class="user-port-val-col">
+          <label class="user-port-label" id="user-port-val-label" for="user-port-qty-input">Antall andeler:</label>
+          <div class="user-port-input-group">
+            <input type="number" id="user-port-qty-input" class="user-port-num-input" placeholder="f.eks. 50" min="0.01" step="any">
+            <button type="button" id="btn-user-port-add" class="btn btn-secondary user-port-add-btn" disabled>+ Legg til</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Valgte fond i aktiv portefølje (Tabell / Liste) -->
+      <div id="user-port-holdings-container" class="user-port-holdings-wrap">
+        <div class="user-port-holdings-header">
+          <div>
+            <span class="user-port-holdings-count" id="user-port-holdings-count">Dine beholdninger (0 fond)</span>
+            <span class="user-port-total-value font-bold text-indigo" id="user-port-total-value" style="margin-left: 0.75rem;">Totalverdi: 0 kr</span>
+          </div>
+          <div class="port-holdings-actions">
+            <button id="btn-user-port-clear" class="btn btn-xs btn-ghost" style="display: none;" title="Tøm alle fond i denne porteføljen">🗑️ Tøm beholdninger</button>
+            <button id="btn-user-port-analyze" class="btn btn-xs btn-primary btn-analyze-portfolio" disabled title="Legg til minst 2 fond for å beregne avkastning og kurve">📊 Beregn Kvantitativ Analyse</button>
+          </div>
+        </div>
+        <div class="user-port-chips-grid" id="user-port-chips-grid"></div>
+      </div>
+
+    </section>
+
+    <!-- Porteføljens Kvantitative Analyse (KPI-er & Graf direkte i fanen) -->
+    <section class="port-analysis-section" id="port-analysis-section" style="display: none;">
+      <div class="port-analysis-header">
+        <div>
+          <h3 class="port-section-title">📊 Kvantitativ Porteføljeanalyse</h3>
+          <span class="text-muted text-sm" id="port-analysis-date-range">Beregnet fra felles daglig NAV</span>
+        </div>
+      </div>
+
+      <!-- Portefølje KPI-kort -->
+      <div class="port-kpi-grid">
+        <div class="port-kpi-card">
+          <div class="port-kpi-label">Totalverdi</div>
+          <div class="port-kpi-value text-indigo" id="studio-port-val">0 kr</div>
+          <div class="port-kpi-sub" id="studio-port-count-sub">0 fond</div>
+        </div>
+        <div class="port-kpi-card">
+          <div class="port-kpi-label">Historisk Avkastning (CAGR)</div>
+          <div class="port-kpi-value text-emerald" id="studio-port-cagr">—%</div>
+          <div class="port-kpi-sub">Annualisert vekst</div>
+        </div>
+        <div class="port-kpi-card">
+          <div class="port-kpi-label">Portefølje Sharpe 3Y</div>
+          <div class="port-kpi-value text-indigo" id="studio-port-sharpe">—</div>
+          <div class="port-kpi-sub">Risikojustert avkastning</div>
+        </div>
+        <div class="port-kpi-card">
+          <div class="port-kpi-label">Årlig Volatilitet (StdDev)</div>
+          <div class="port-kpi-value text-amber" id="studio-port-vol">—%</div>
+          <div class="port-kpi-sub">Standardavvik</div>
+        </div>
+        <div class="port-kpi-card">
+          <div class="port-kpi-label">Max Drawdown</div>
+          <div class="port-kpi-value text-rose" id="studio-port-maxdd">—%</div>
+          <div class="port-kpi-sub">Største fall fra topp</div>
+        </div>
+        <div class="port-kpi-card">
+          <div class="port-kpi-label">Snitt Årlig Avgift</div>
+          <div class="port-kpi-value text-sky" id="studio-port-fee">—%</div>
+          <div class="port-kpi-sub">Vektet forvaltningshonorar</div>
+        </div>
+      </div>
+
+      <!-- Porteføljens Simulerte Historiske Kursgraf -->
+      <div class="port-chart-card">
+        <div class="port-chart-header">
+          <div>
+            <span class="port-chart-badge">Simulert NAV</span>
+            <h4 class="port-chart-title">Normalisert Historisk Kursutvikling (Basis = 100)</h4>
+          </div>
+          <div class="port-chart-legend" id="studio-chart-tooltip">Hold musepeker over grafen for detaljer</div>
+        </div>
+        <div id="studio-portfolio-equity-chart" class="studio-portfolio-chart-canvas"></div>
+      </div>
+    </section>
+
+    <!-- 🎯 AI Porteføljekrav & Mandatstyring (Hennes spesifikke ønske!) -->
+    <section class="port-criteria-section">
+      <div class="port-criteria-header">
+        <div class="port-criteria-title-wrap">
+          <span class="port-criteria-icon">🎯</span>
+          <div>
+            <h3 class="port-section-title">Krav og Mandat for AI-Vurdering</h3>
+            <p class="port-criteria-sub">Definer reglene og toleransene for denne porteføljen. AI-modellen sjekker sammensetningen mot disse kriteriene og gir konkrete forbedringsforslag.</p>
+          </div>
+        </div>
+        <button id="btn-trigger-ai-audit" class="btn btn-primary btn-ai-audit">
+          <span>✨</span> Be AI vurdere porteføljen mot kravene
+        </button>
+      </div>
+
+      <div class="port-criteria-grid">
+        <!-- Risikoprofil -->
+        <div class="criteria-card">
+          <label class="criteria-label">Risikoprofil & Målsetning:</label>
+          <div class="criteria-options-group" id="criteria-risk-group">
+            <label class="criteria-radio"><input type="radio" name="crit-risk" value="conservative"> 🛡️ Defensiv / Kapitalbevaring</label>
+            <label class="criteria-radio"><input type="radio" name="crit-risk" value="balanced" checked> ⚖️ Balansert (Vekst & Beskyttelse)</label>
+            <label class="criteria-radio"><input type="radio" name="crit-risk" value="aggressive"> 🚀 Offensiv / Maksimal vekst</label>
+          </div>
+        </div>
+
+        <!-- Kvantitative Rammer -->
+        <div class="criteria-card">
+          <label class="criteria-label">Spesifikke Allokerings- og Risikogrenser:</label>
+          <div class="criteria-checkbox-list">
+            <label class="criteria-check-item">
+              <input type="checkbox" id="crit-chk-sector" checked>
+              <span>Maks 25 % eksponering mot én enkelt sektor (f.eks. teknologi)</span>
+            </label>
+            <label class="criteria-check-item">
+              <input type="checkbox" id="crit-chk-geo" checked>
+              <span>Global diversifisering (Maks 50 % konsentrert i USA/enkeltregion)</span>
+            </label>
+            <label class="criteria-check-item">
+              <input type="checkbox" id="crit-chk-drawdown" checked>
+              <span>Maksimalt 15 % historisk drawdown (3 år)</span>
+            </label>
+            <label class="criteria-check-item">
+              <input type="checkbox" id="crit-chk-sharpe" checked>
+              <span>Krav om samlet Sharpe Ratio ≥ 1.0 (høy risikojustert avkastning)</span>
+            </label>
+            <label class="criteria-check-item">
+              <input type="checkbox" id="crit-chk-fee" checked>
+              <span>Kostnadskontroll (Vektet årlig avgift under 0,25 %)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Eget fritekst-mandat -->
+      <div class="criteria-custom-notes-wrap">
+        <label class="criteria-label" for="crit-custom-notes">
+          <span>📝 Dine egne faste strategi-regler (lagres automatisk på denne porteføljen):</span>
+        </label>
+        <textarea id="crit-custom-notes" class="criteria-textarea" rows="3" placeholder="F.eks.: Jeg ønsker å redusere teknologi-andelen, ha minst 15 % i obligasjoner/råvarer, og foretrekker akkumulerende UCITS-fond med god likviditet..."></textarea>
+      </div>
+    </section>
+
+  </div> <!-- Slutt på view-pane-portfolio -->
+
+</main>
 
   <!-- Modal / Detaljvisning -->
   <div id="etf-modal" class="modal-backdrop" style="display: none;">

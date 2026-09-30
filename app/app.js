@@ -20,6 +20,11 @@
   // Multi-ETF sammenligning state
   const selectedCompareISINs = new Set();
 
+  function safeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+  }
+
   // Sparkline SVG generator for tabellvisning (1-års trend)
   function renderSparklineSVG(points, width = 85, height = 22) {
     if (!points || !Array.isArray(points) || points.length < 2) {
@@ -618,8 +623,9 @@
     // Setup event listeners
     setupEventListeners();
 
-    // Setup Egen Portefølje seksjon
+    // Setup Egen Portefølje seksjon & Hovednavigasjon
     initUserPortfolioSection();
+    initAppNavigation();
 
     // Setup Chart Studio (TradingView-stil Kursgraf)
     initChartStudio();
@@ -2124,10 +2130,12 @@
     // Samle dyp og helhetlig kontekst for prompten
     let contextPrompt = 'KONTEKST FRA ETF ANALYTICS PRO:\n';
 
-    // 1. Brukerens Egen Portefølje
-    if (userPortfolioHoldings && userPortfolioHoldings.length > 0) {
-      const totalPortVal = userPortfolioHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
-      const portDetails = userPortfolioHoldings.map(h => {
+    // 1. Brukerens Aktive Portefølje (Portefølje-Studio)
+    const activePort = typeof getActivePortfolio === 'function' ? getActivePortfolio() : { holdings: userPortfolioHoldings, name: 'Portefølje 1' };
+    const portHoldings = (activePort && activePort.holdings) ? activePort.holdings : (userPortfolioHoldings || []);
+    if (portHoldings && portHoldings.length > 0) {
+      const totalPortVal = portHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+      const portDetails = portHoldings.map(h => {
         const w = Math.round(((h.computedValue || 0) / totalPortVal) * 100);
         return {
           Ticker: h.ticker,
@@ -2140,25 +2148,43 @@
         };
       });
 
-      contextPrompt += `=== BRUKERENS FAKTISKE PORTEFØLJE (Lagt inn av brukeren på toppen av siden) ===\n`;
+      contextPrompt += `=== BRUKERENS AKTIVE PORTEFØLJE: "${activePort.name || 'Portefølje 1'}" (I Portefølje-Studio) ===\n`;
       contextPrompt += `Total beregnet verdi: ${Math.round(totalPortVal).toLocaleString('no-NO')} kr\n`;
-      contextPrompt += `Antall fond: ${userPortfolioHoldings.length}\n`;
+      contextPrompt += `Antall fond: ${portHoldings.length}\n`;
       contextPrompt += `Fondssammensetning og vekting:\n` + JSON.stringify(portDetails, null, 2) + `\n`;
 
-      const elPortCagr = document.getElementById('port-cagr');
-      const elPortSharpe = document.getElementById('port-sharpe');
-      const elPortVol = document.getElementById('port-vol');
-      const elPortMaxDD = document.getElementById('port-maxdd');
-      if (elPortCagr && elPortCagr.textContent !== '—%') {
-        contextPrompt += `Beregnet historisk risiko & avkastning for denne porteføljen:\n`;
-        contextPrompt += `- Årlig avkastning (CAGR): ${elPortCagr.textContent}\n`;
-        contextPrompt += `- Sharpe Ratio: ${elPortSharpe ? elPortSharpe.textContent : '—'}\n`;
-        contextPrompt += `- Volatilitet (årlig standardavvik): ${elPortVol ? elPortVol.textContent : '—'}\n`;
-        contextPrompt += `- Maksimal Drawdown: ${elPortMaxDD ? elPortMaxDD.textContent : '—'}\n`;
+      if (activePort.criteria) {
+        const c = activePort.criteria;
+        const riskLabel = c.risk === 'conservative' ? 'Defensiv / Kapitalbevaring' : (c.risk === 'aggressive' ? 'Offensiv / Maksimal vekst' : 'Balansert (Vekst & Beskyttelse)');
+        contextPrompt += `Definert risikoprofil & strategi:\n`;
+        contextPrompt += `- Målsetning: ${riskLabel}\n`;
+        if (c.maxSector) contextPrompt += `- Mandatregel: Maks 25 % eksponering mot én enkelt sektor\n`;
+        if (c.globalGeo) contextPrompt += `- Mandatregel: Global diversifisering (Maks 50 % i USA/enkeltregion)\n`;
+        if (c.maxDrawdown) contextPrompt += `- Mandatregel: Maks 15 % historisk drawdown (3Y)\n`;
+        if (c.minSharpe) contextPrompt += `- Mandatregel: Krav om samlet Sharpe Ratio ≥ 1.0\n`;
+        if (c.maxFee) contextPrompt += `- Mandatregel: Kostnadskontroll (Vektet årlig avgift < 0,25 %)\n`;
+        if (c.customNotes && c.customNotes.trim()) {
+          contextPrompt += `- Brukerens egne faste strategi-regler: "${c.customNotes.trim()}"\n`;
+        }
+      }
+
+      // Sjekk om det er beregnet tall i Studio
+      const studioCagr = document.getElementById('studio-port-cagr');
+      const studioSharpe = document.getElementById('studio-port-sharpe');
+      const studioVol = document.getElementById('studio-port-vol');
+      const studioMaxDD = document.getElementById('studio-port-maxdd');
+      const studioFee = document.getElementById('studio-port-fee');
+      if (studioSharpe && studioSharpe.textContent !== '—') {
+        contextPrompt += `Beregnet statistikk for porteføljen:\n`;
+        contextPrompt += `- Historisk vekst (CAGR): ${studioCagr ? studioCagr.textContent : '—'}\n`;
+        contextPrompt += `- Portefølje Sharpe (3Y): ${studioSharpe.textContent}\n`;
+        contextPrompt += `- Årlig volatilitet: ${studioVol ? studioVol.textContent : '—'}\n`;
+        contextPrompt += `- Maksimal Drawdown: ${studioMaxDD ? studioMaxDD.textContent : '—'}\n`;
+        contextPrompt += `- Vektet årlig avgift: ${studioFee ? studioFee.textContent : '—'}\n`;
       }
       contextPrompt += `\n`;
     } else {
-      contextPrompt += `Brukeren har foreløpig ikke lagt inn en egen portefølje i porteføljebyggeren.\n\n`;
+      contextPrompt += `Brukeren har foreløpig ikke lagt inn fond i den aktive porteføljen i Portefølje-Studio.\n\n`;
     }
 
     // 2. Markedsbredde & Taktisk Regime akkurat nå
@@ -5245,11 +5271,636 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
 
 
   // ==========================================================================
-  // Egen Portefølje (Legg inn egne beholdninger & analyser)
+  // Portefølje-Studio (Multi-portefølje opptil 5 profiler, mandater og AI-revisjon)
   // ==========================================================================
-  let userPortfolioHoldings = []; // [{ isin, ticker, name, unit: 'shares' | 'amount', rawValue, computedValue, price }]
+  let userPortfolios = [];
+  let activePortfolioId = 'port_1';
+  let userPortfolioHoldings = []; // Peker alltid på aktiv porteføljes beholdninger
   let userPortSelectedETF = null;
   let userPortCurrentUnit = 'shares';
+  let studioPortfolioChartInstance = null;
+
+  function createDefaultPortfolio(id = 'port_1', name = 'Portefølje 1') {
+    return {
+      id: id,
+      name: name,
+      holdings: [],
+      criteria: {
+        risk: 'balanced',
+        maxSector: true,
+        globalGeo: true,
+        maxDrawdown: true,
+        minSharpe: true,
+        maxFee: true,
+        customNotes: ''
+      }
+    };
+  }
+
+  function getActivePortfolio() {
+    if (!userPortfolios || !userPortfolios.length) {
+      userPortfolios = [createDefaultPortfolio('port_1', 'Portefølje 1')];
+      activePortfolioId = 'port_1';
+    }
+    let p = userPortfolios.find(item => item.id === activePortfolioId);
+    if (!p) {
+      p = userPortfolios[0];
+      activePortfolioId = p.id;
+    }
+    userPortfolioHoldings = p.holdings || (p.holdings = []);
+    return p;
+  }
+
+  function loadSavedUserPortfolio() {
+    try {
+      const saved = localStorage.getItem('etf_saved_portfolios_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          userPortfolios = parsed;
+          const savedActiveId = localStorage.getItem('etf_active_portfolio_id');
+          if (savedActiveId && userPortfolios.some(p => p.id === savedActiveId)) {
+            activePortfolioId = savedActiveId;
+          } else {
+            activePortfolioId = userPortfolios[0].id;
+          }
+          getActivePortfolio();
+          return;
+        }
+      }
+    } catch (e) {}
+
+    // Migrering fra v1
+    try {
+      const legacy = localStorage.getItem('etf_user_portfolio_holdings');
+      if (legacy) {
+        const parsedLegacy = JSON.parse(legacy);
+        if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+          const def = createDefaultPortfolio('port_1', 'Portefølje 1');
+          def.holdings = parsedLegacy;
+          userPortfolios = [def];
+          activePortfolioId = 'port_1';
+          userPortfolioHoldings = parsedLegacy;
+          saveUserPortfolio();
+          return;
+        }
+      }
+    } catch (e) {}
+
+    userPortfolios = [createDefaultPortfolio('port_1', 'Portefølje 1')];
+    activePortfolioId = 'port_1';
+    getActivePortfolio();
+  }
+
+  function saveUserPortfolio() {
+    try {
+      const active = getActivePortfolio();
+      active.holdings = userPortfolioHoldings;
+      localStorage.setItem('etf_saved_portfolios_v2', JSON.stringify(userPortfolios));
+      localStorage.setItem('etf_active_portfolio_id', activePortfolioId);
+      // Bakoverkompatibilitet
+      localStorage.setItem('etf_user_portfolio_holdings', JSON.stringify(userPortfolioHoldings));
+    } catch (e) {}
+    updateNavAndShortcutBadges();
+  }
+
+  function updateNavAndShortcutBadges() {
+    const p = getActivePortfolio();
+    const count = (p.holdings || []).length;
+    const totalVal = (p.holdings || []).reduce((sum, h) => sum + (h.computedValue || 0), 0);
+
+    const navBadge = document.getElementById('main-nav-port-count');
+    if (navBadge) {
+      navBadge.textContent = `${count} fond`;
+    }
+
+    const banner = document.getElementById('portfolio-quick-banner');
+    const nameEl = document.getElementById('shortcut-port-name');
+    const countEl = document.getElementById('shortcut-port-count');
+    const valEl = document.getElementById('shortcut-port-val');
+
+    if (banner) {
+      if (count > 0) {
+        banner.style.display = 'flex';
+        if (nameEl) nameEl.textContent = p.name;
+        if (countEl) countEl.textContent = `${count} fond`;
+        if (valEl) valEl.textContent = `${Math.round(totalVal).toLocaleString('no-NO')} kr`;
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+  }
+
+  function renderPortfolioProfileTabs() {
+    const tabsContainer = document.getElementById('portfolio-profile-tabs');
+    const nameDisplay = document.getElementById('port-active-name-display');
+    const active = getActivePortfolio();
+
+    if (nameDisplay) {
+      nameDisplay.textContent = active.name || 'Portefølje 1';
+    }
+
+    if (tabsContainer) {
+      let html = '';
+      userPortfolios.forEach(port => {
+        const isActive = port.id === activePortfolioId;
+        const count = (port.holdings || []).length;
+        html += `
+          <button type="button" class="port-profile-tab ${isActive ? 'active' : ''}" data-id="${port.id}">
+            <span>${safeHtml(port.name)}</span>
+            <span class="port-profile-count-pill">${count}</span>
+          </button>
+        `;
+      });
+
+      if (userPortfolios.length < 5) {
+        html += `
+          <button type="button" id="btn-add-profile-tab" class="btn-add-profile-tab" title="Opprett en ny tom portefølje (inntil 5)">
+            <span>+</span> Ny portefølje
+          </button>
+        `;
+      }
+      tabsContainer.innerHTML = html;
+
+      // Event listeners for tabs
+      tabsContainer.querySelectorAll('.port-profile-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const id = tab.dataset.id;
+          if (id && id !== activePortfolioId) {
+            activePortfolioId = id;
+            getActivePortfolio();
+            saveUserPortfolio();
+            renderPortfolioProfileTabs();
+            renderUserPortfolioChips();
+            syncCriteriaUIFromActivePortfolio();
+            calculateAndRenderStudioPortfolioAnalysis();
+          }
+        });
+      });
+
+      const btnAddTab = document.getElementById('btn-add-profile-tab');
+      if (btnAddTab) {
+        btnAddTab.addEventListener('click', addNewPortfolio);
+      }
+    }
+  }
+
+  function addNewPortfolio() {
+    if (userPortfolios.length >= 5) {
+      alert('Du kan maksimalt opprette 5 porteføljer samtidig. Slett eller gi nytt navn til en eksisterende.');
+      return;
+    }
+    const newId = 'port_' + Date.now();
+    const newName = `Portefølje ${userPortfolios.length + 1}`;
+    const newPort = createDefaultPortfolio(newId, newName);
+    userPortfolios.push(newPort);
+    activePortfolioId = newId;
+    getActivePortfolio();
+    saveUserPortfolio();
+    renderPortfolioProfileTabs();
+    renderUserPortfolioChips();
+    syncCriteriaUIFromActivePortfolio();
+    calculateAndRenderStudioPortfolioAnalysis();
+  }
+
+  function renameCurrentPortfolio() {
+    const active = getActivePortfolio();
+    const currentName = active.name || 'Portefølje 1';
+    const newName = prompt('Endre navn på porteføljen:', currentName);
+    if (newName && newName.trim() && newName.trim() !== currentName) {
+      active.name = newName.trim().slice(0, 40);
+      saveUserPortfolio();
+      renderPortfolioProfileTabs();
+      updateNavAndShortcutBadges();
+    }
+  }
+
+  function duplicateCurrentPortfolio() {
+    if (userPortfolios.length >= 5) {
+      alert('Du kan maksimalt ha 5 porteføljer samtidig. Slett en før du dupliserer.');
+      return;
+    }
+    const active = getActivePortfolio();
+    const dupId = 'port_' + Date.now();
+    const dupName = `${active.name} (Kopi)`.slice(0, 40);
+    const dup = JSON.parse(JSON.stringify(active));
+    dup.id = dupId;
+    dup.name = dupName;
+    userPortfolios.push(dup);
+    activePortfolioId = dupId;
+    getActivePortfolio();
+    saveUserPortfolio();
+    renderPortfolioProfileTabs();
+    renderUserPortfolioChips();
+    syncCriteriaUIFromActivePortfolio();
+    calculateAndRenderStudioPortfolioAnalysis();
+  }
+
+  function deleteCurrentPortfolio() {
+    if (userPortfolios.length <= 1) {
+      alert('Du må ha minst én aktiv portefølje. Du kan tømme fondene i stedet.');
+      return;
+    }
+    const active = getActivePortfolio();
+    if (confirm(`Er du sikker på at du vil slette porteføljen "${active.name}"? Dette kan ikke angres.`)) {
+      userPortfolios = userPortfolios.filter(p => p.id !== activePortfolioId);
+      activePortfolioId = userPortfolios[0].id;
+      getActivePortfolio();
+      saveUserPortfolio();
+      renderPortfolioProfileTabs();
+      renderUserPortfolioChips();
+      syncCriteriaUIFromActivePortfolio();
+      calculateAndRenderStudioPortfolioAnalysis();
+    }
+  }
+
+  function syncCriteriaUIFromActivePortfolio() {
+    const active = getActivePortfolio();
+    const c = active.criteria || (active.criteria = {
+      risk: 'balanced',
+      maxSector: true,
+      globalGeo: true,
+      maxDrawdown: true,
+      minSharpe: true,
+      maxFee: true,
+      customNotes: ''
+    });
+
+    const riskRadios = document.querySelectorAll('input[name="crit-risk"]');
+    riskRadios.forEach(r => {
+      r.checked = (r.value === (c.risk || 'balanced'));
+    });
+
+    const chkSector = document.getElementById('crit-chk-sector');
+    const chkGeo = document.getElementById('crit-chk-geo');
+    const chkDD = document.getElementById('crit-chk-drawdown');
+    const chkSharpe = document.getElementById('crit-chk-sharpe');
+    const chkFee = document.getElementById('crit-chk-fee');
+    const txtNotes = document.getElementById('crit-custom-notes');
+
+    if (chkSector) chkSector.checked = c.maxSector !== false;
+    if (chkGeo) chkGeo.checked = c.globalGeo !== false;
+    if (chkDD) chkDD.checked = c.maxDrawdown !== false;
+    if (chkSharpe) chkSharpe.checked = c.minSharpe !== false;
+    if (chkFee) chkFee.checked = c.maxFee !== false;
+    if (txtNotes) txtNotes.value = c.customNotes || '';
+  }
+
+  function initPortfolioCriteriaEvents() {
+    document.querySelectorAll('input[name="crit-risk"]').forEach(r => {
+      r.addEventListener('change', () => {
+        const active = getActivePortfolio();
+        if (!active.criteria) active.criteria = {};
+        active.criteria.risk = r.value;
+        saveUserPortfolio();
+      });
+    });
+
+    const bindCheck = (id, prop) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', () => {
+          const active = getActivePortfolio();
+          if (!active.criteria) active.criteria = {};
+          active.criteria[prop] = el.checked;
+          saveUserPortfolio();
+        });
+      }
+    };
+
+    bindCheck('crit-chk-sector', 'maxSector');
+    bindCheck('crit-chk-geo', 'globalGeo');
+    bindCheck('crit-chk-drawdown', 'maxDrawdown');
+    bindCheck('crit-chk-sharpe', 'minSharpe');
+    bindCheck('crit-chk-fee', 'maxFee');
+
+    const txtNotes = document.getElementById('crit-custom-notes');
+    if (txtNotes) {
+      let notesTimer = null;
+      txtNotes.addEventListener('input', () => {
+        clearTimeout(notesTimer);
+        notesTimer = setTimeout(() => {
+          const active = getActivePortfolio();
+          if (!active.criteria) active.criteria = {};
+          active.criteria.customNotes = txtNotes.value;
+          saveUserPortfolio();
+        }, 300);
+      });
+    }
+
+    const btnAudit = document.getElementById('btn-trigger-ai-audit');
+    if (btnAudit) {
+      btnAudit.addEventListener('click', triggerPortfolioAiAudit);
+    }
+  }
+
+  function triggerPortfolioAiAudit() {
+    const active = getActivePortfolio();
+    const holdings = active.holdings || [];
+    if (!holdings.length) {
+      alert('Legg til minst ett eller to fond i porteføljen din først, så AI kan analysere og vurdere den mot kravene dine.');
+      return;
+    }
+
+    const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+    const c = active.criteria || {};
+    const riskLabel = c.risk === 'conservative' ? 'Defensiv / Kapitalbevaring' : (c.risk === 'aggressive' ? 'Offensiv / Maksimal vekst' : 'Balansert (Vekst & Beskyttelse)');
+
+    let fundListStr = holdings.map(h => {
+      const w = Math.round(((h.computedValue || 0) / totalVal) * 100);
+      const valStr = h.unit === 'shares' ? `${h.rawValue} andeler (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)` : `${Math.round(h.rawValue).toLocaleString('no-NO')} kr`;
+      return `- ${h.ticker} (${h.isin}) — ${h.name}: ${w}% vekt (${valStr})`;
+    }).join('\n');
+
+    let reqList = [];
+    reqList.push(`- Risikoprofil: ${riskLabel}`);
+    if (c.maxSector) reqList.push('- Mandatkrav: Maks 25 % eksponering mot én enkelt sektor (f.eks. teknologi)');
+    if (c.globalGeo) reqList.push('- Mandatkrav: Global diversifisering (Maks 50 % konsentrert i USA/enkeltregion)');
+    if (c.maxDrawdown) reqList.push('- Mandatkrav: Maksimalt 15 % historisk drawdown (3 år)');
+    if (c.minSharpe) reqList.push('- Mandatkrav: Krav om samlet Sharpe Ratio ≥ 1.0 (høy risikojustert avkastning)');
+    if (c.maxFee) reqList.push('- Mandatkrav: Kostnadskontroll (Vektet årlig avgift under 0,25 %)');
+    if (c.customNotes && c.customNotes.trim()) {
+      reqList.push(`- Egne faste regler: "${c.customNotes.trim()}"`);
+    }
+
+    const prompt = `Gjennomfør en grundig og institusjonell porteføljerevisjon av min portefølje "${active.name}" opp mot mine definerte mandatkrav og risikoprofil.
+
+PORTEFØLJEN MIN:
+Beregnet totalverdi: ${Math.round(totalVal).toLocaleString('no-NO')} kr (${holdings.length} fond)
+${fundListStr}
+
+MINE DEFINERTE KRAV & MANDAT:
+${reqList.join('\n')}
+
+Vennligst gi en strukturert evaluering med følgende tre overskrifter:
+### 1. Evaluering mot definert mandat og risikoprofil
+Vurder om porteføljen bryter med noen av de oppgitte mandatreglene (sektor, geografi, drawdown, Sharpe, kostnad og egne regler).
+
+### 2. Svakheter, konsentrasjonsrisiko og nedsidesårbarhet
+Hva er de største sårbarhetene ved denne sammensetningen i et stresset marked?
+
+### 3. Konkrete justeringer og alternative UCITS ETF-er
+Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spesifikke UCITS ETF-er med ISIN og ticker som oppfyller kravene mine.`;
+
+    if (typeof openAiChat === 'function') openAiChat();
+    if (typeof sendAiMessage === 'function') sendAiMessage(prompt);
+  }
+
+  function calculateAndRenderStudioPortfolioAnalysis() {
+    const section = document.getElementById('port-analysis-section');
+    const elVal = document.getElementById('studio-port-val');
+    const elCountSub = document.getElementById('studio-port-count-sub');
+    const elFee = document.getElementById('studio-port-fee');
+    const elSharpe = document.getElementById('studio-port-sharpe');
+    const elVol = document.getElementById('studio-port-vol');
+    const elMaxdd = document.getElementById('studio-port-maxdd');
+    const elCagr = document.getElementById('studio-port-cagr');
+
+    const active = getActivePortfolio();
+    const holdings = active.holdings || [];
+
+    if (!holdings.length) {
+      if (section) section.style.display = 'none';
+      if (elVal) elVal.textContent = '0 kr';
+      if (elCountSub) elCountSub.textContent = '0 fond';
+      return;
+    }
+
+    if (section) section.style.display = 'block';
+
+    const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+    if (elVal) elVal.textContent = `${Math.round(totalVal).toLocaleString('no-NO')} kr`;
+    if (elCountSub) elCountSub.textContent = `${holdings.length} fond valgt (100%)`;
+
+    // Beregn vektet statistikk
+    let weightedFee = 0;
+    let weightedSharpe = 0;
+    let weightedVol = 0;
+    let weightedMaxDD = 0;
+    let weightedCagr = 0;
+    let validFeeWeight = 0;
+    let validSharpeWeight = 0;
+    let validVolWeight = 0;
+    let validDDWeight = 0;
+    let validCagrWeight = 0;
+
+    holdings.forEach(h => {
+      const item = rawData.find(d => d.ISIN === h.isin);
+      const w = (h.computedValue || 0) / totalVal;
+      if (item) {
+        if (item['Aarlig_Avgift_%'] !== null && !isNaN(item['Aarlig_Avgift_%'])) {
+          weightedFee += w * parseFloat(item['Aarlig_Avgift_%']);
+          validFeeWeight += w;
+        }
+        const sh = item.Sharpe_3Y !== null && item.Sharpe_3Y !== undefined ? parseFloat(item.Sharpe_3Y) : parseFloat(item.Sharpe_1Y);
+        if (!isNaN(sh)) {
+          weightedSharpe += w * sh;
+          validSharpeWeight += w;
+        }
+        const vol = item['Standardavvik_3Y_%'] !== null && item['Standardavvik_3Y_%'] !== undefined ? parseFloat(item['Standardavvik_3Y_%']) : null;
+        if (vol !== null && !isNaN(vol)) {
+          weightedVol += w * vol;
+          validVolWeight += w;
+        }
+        const dd = item['Max_Drawdown_3Y_%'] !== null && item['Max_Drawdown_3Y_%'] !== undefined ? parseFloat(item['Max_Drawdown_3Y_%']) : parseFloat(item['Max_Drawdown_1Y_%']);
+        if (dd !== null && !isNaN(dd)) {
+          weightedMaxDD += w * dd;
+          validDDWeight += w;
+        }
+        const cagr = item['Avkastning_3Y_Ann_%'] !== null && item['Avkastning_3Y_Ann_%'] !== undefined ? parseFloat(item['Avkastning_3Y_Ann_%']) : parseFloat(item['Avkastning_12M_%']);
+        if (cagr !== null && !isNaN(cagr)) {
+          weightedCagr += w * cagr;
+          validCagrWeight += w;
+        }
+      }
+    });
+
+    const finalFee = validFeeWeight > 0 ? (weightedFee / validFeeWeight) : null;
+    const finalSharpe = validSharpeWeight > 0 ? (weightedSharpe / validSharpeWeight) : null;
+    const finalVol = validVolWeight > 0 ? (weightedVol / validVolWeight) : null;
+    const finalDD = validDDWeight > 0 ? (weightedMaxDD / validDDWeight) : null;
+    const finalCagr = validCagrWeight > 0 ? (weightedCagr / validCagrWeight) : null;
+
+    if (elFee) elFee.textContent = finalFee !== null ? `${finalFee.toFixed(2)}%` : '—%';
+    if (elSharpe) {
+      elSharpe.textContent = finalSharpe !== null ? finalSharpe.toFixed(2) : '—';
+      elSharpe.className = `port-kpi-value ${finalSharpe !== null && finalSharpe >= 1.0 ? 'text-indigo' : (finalSharpe !== null && finalSharpe < 0 ? 'text-rose' : 'text-white')}`;
+    }
+    if (elVol) elVol.textContent = finalVol !== null ? `${finalVol.toFixed(1)}%` : '—%';
+    if (elMaxdd) {
+      elMaxdd.textContent = finalDD !== null ? `${finalDD.toFixed(1)}%` : '—%';
+      elMaxdd.className = 'port-kpi-value text-rose';
+    }
+    if (elCagr) {
+      elCagr.textContent = finalCagr !== null ? `${finalCagr >= 0 ? '+' : ''}${finalCagr.toFixed(1)}%` : '—%';
+      elCagr.className = `port-kpi-value ${finalCagr !== null && finalCagr >= 0 ? 'text-emerald' : 'text-rose'}`;
+    }
+
+    // Tegn eller oppdater Studio-graf
+    drawStudioPortfolioChart(holdings);
+  }
+
+  function drawStudioPortfolioChart(holdings) {
+    const container = document.getElementById('studio-portfolio-equity-chart');
+    const tooltip = document.getElementById('studio-chart-tooltip');
+    if (!container || typeof LightweightCharts === 'undefined') return;
+
+    if (studioPortfolioChartInstance) {
+      try {
+        studioPortfolioChartInstance.remove();
+      } catch (e) {}
+      studioPortfolioChartInstance = null;
+    }
+
+    container.innerHTML = '';
+    const containerW = container.clientWidth || 800;
+    const containerH = 320;
+
+    // Bygg simulert serie basert på sparklines eller tilgjengelig historikk
+    const navSeries = [];
+    const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+
+    // Finn sparklines for fondene
+    const sparklines = [];
+    holdings.forEach(h => {
+      const item = rawData.find(d => d.ISIN === h.isin);
+      const w = (h.computedValue || 0) / totalVal;
+      if (item && Array.isArray(item.Sparkline) && item.Sparkline.length >= 10) {
+        sparklines.push({ weight: w, pts: item.Sparkline });
+      }
+    });
+
+    if (sparklines.length > 0) {
+      const minLen = Math.min(...sparklines.map(s => s.pts.length));
+      const today = new Date();
+      for (let i = 0; i < minLen; i++) {
+        let nav = 0;
+        sparklines.forEach(s => {
+          const p0 = s.pts[0] || 1;
+          const pt = s.pts[i];
+          const norm = (pt / p0) * 100.0;
+          nav += s.weight * norm;
+        });
+        const d = new Date(today.getTime() - (minLen - 1 - i) * 7 * 24 * 60 * 60 * 1000);
+        const dateStr = d.toISOString().split('T')[0];
+        navSeries.push({ time: dateStr, value: parseFloat(nav.toFixed(2)) });
+      }
+    }
+
+    if (navSeries.length < 5) {
+      container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted); font-size:0.85rem;">Ikke tilstrekkelig kurshistorikk for simulering av alle valgte fond.</div>';
+      return;
+    }
+
+    studioPortfolioChartInstance = LightweightCharts.createChart(container, {
+      width: containerW,
+      height: containerH,
+      layout: {
+        background: { type: 'solid', color: '#080c14' },
+        textColor: '#94a3b8',
+        fontSize: 11,
+        fontFamily: "'JetBrains Mono', monospace"
+      },
+      grid: {
+        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.03)' }
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: { color: '#6366f1', width: 1, style: 3 },
+        horzLine: { color: '#6366f1', width: 1, style: 3 }
+      },
+      timeScale: {
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        timeVisible: false
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255, 255, 255, 0.08)'
+      }
+    });
+
+    const areaSeries = studioPortfolioChartInstance.addSeries(LightweightCharts.AreaSeries, {
+      topColor: 'rgba(99, 102, 241, 0.45)',
+      bottomColor: 'rgba(99, 102, 241, 0.02)',
+      lineColor: '#818cf8',
+      lineWidth: 2,
+      priceFormat: { type: 'custom', formatter: p => p.toFixed(2) }
+    });
+
+    areaSeries.setData(navSeries);
+
+    areaSeries.createPriceLine({
+      price: 100.0,
+      color: 'rgba(255, 255, 255, 0.25)',
+      lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      title: 'Basis (100)'
+    });
+
+    studioPortfolioChartInstance.subscribeCrosshairMove(param => {
+      if (!param || !param.time || !param.seriesData) {
+        if (tooltip) tooltip.textContent = 'Hold musepeker over grafen for detaljer';
+        return;
+      }
+      const val = param.seriesData.get(areaSeries);
+      const p = val && val.value !== undefined ? val.value : (val && val.close !== undefined ? val.close : null);
+      if (p !== null && tooltip) {
+        const diff = p - 100;
+        tooltip.innerHTML = `Dato: <strong style="color:#fff;">${param.time}</strong> | Normalisert NAV: <strong style="color:#818cf8;">${p.toFixed(2)}</strong> (<span style="color:${diff >= 0 ? '#10b981' : '#f43f5e'}; font-weight:700;">${diff >= 0 ? '+' : ''}${diff.toFixed(2)}%</span>)`;
+      }
+    });
+
+    studioPortfolioChartInstance.timeScale().fitContent();
+
+    setTimeout(() => {
+      if (studioPortfolioChartInstance && container) {
+        studioPortfolioChartInstance.applyOptions({
+          width: container.clientWidth || containerW,
+          height: containerH
+        });
+        studioPortfolioChartInstance.timeScale().fitContent();
+      }
+    }, 50);
+  }
+
+  function initAppNavigation() {
+    const tabScreener = document.getElementById('tab-nav-screener');
+    const tabPortfolio = document.getElementById('tab-nav-portfolio');
+    const paneScreener = document.getElementById('view-pane-screener');
+    const panePortfolio = document.getElementById('view-pane-portfolio');
+    const btnGotoStudio = document.getElementById('btn-goto-portfolio-studio');
+
+    function switchView(viewName) {
+      if (viewName === 'portfolio') {
+        if (tabPortfolio) tabPortfolio.classList.add('active');
+        if (tabScreener) tabScreener.classList.remove('active');
+        if (paneScreener) paneScreener.style.display = 'none';
+        if (panePortfolio) {
+          panePortfolio.style.display = 'block';
+          // Oppdater analyse og re-render graf med korrekte dimensjoner
+          calculateAndRenderStudioPortfolioAnalysis();
+        }
+      } else {
+        if (tabScreener) tabScreener.classList.add('active');
+        if (tabPortfolio) tabPortfolio.classList.remove('active');
+        if (paneScreener) paneScreener.style.display = 'block';
+        if (panePortfolio) panePortfolio.style.display = 'none';
+      }
+      updateNavAndShortcutBadges();
+    }
+
+    if (tabScreener) {
+      tabScreener.addEventListener('click', () => switchView('screener'));
+    }
+    if (tabPortfolio) {
+      tabPortfolio.addEventListener('click', () => switchView('portfolio'));
+    }
+    if (btnGotoStudio) {
+      btnGotoStudio.addEventListener('click', () => switchView('portfolio'));
+    }
+
+    updateNavAndShortcutBadges();
+  }
 
   function initUserPortfolioSection() {
     const elCard = document.getElementById('user-portfolio-card');
@@ -5271,16 +5922,25 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     const btnClearAll = document.getElementById('btn-user-port-clear');
     const btnAnalyze = document.getElementById('btn-user-port-analyze');
 
-    // 1. Last inn lagrede beholdninger fra localStorage
+    // Admin knapper for aktiv portefølje
+    const btnRename = document.getElementById('btn-port-rename');
+    const btnDuplicate = document.getElementById('btn-port-duplicate');
+    const btnDelete = document.getElementById('btn-port-delete');
+
+    if (btnRename) btnRename.addEventListener('click', renameCurrentPortfolio);
+    if (btnDuplicate) btnDuplicate.addEventListener('click', duplicateCurrentPortfolio);
+    if (btnDelete) btnDelete.addEventListener('click', deleteCurrentPortfolio);
+
+    // 1. Last inn lagrede beholdninger & profiler fra localStorage
     loadSavedUserPortfolio();
+    renderPortfolioProfileTabs();
+    syncCriteriaUIFromActivePortfolio();
+    initPortfolioCriteriaEvents();
+    renderUserPortfolioChips();
+    calculateAndRenderStudioPortfolioAnalysis();
 
     // 2. Søk i ETF-er med umiddelbar åpning ved klikk/fokus og søk fra 0-1 bokstav
     let searchDebounceTimer = null;
-
-    function safeHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
-    }
 
     if (searchInput) {
       const openSearchDropdown = () => {
@@ -5512,8 +6172,8 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
         userPortfolioHoldings[existingIdx].price = price;
         userPortfolioHoldings[existingIdx].computedValue = computedVal;
       } else {
-        if (userPortfolioHoldings.length >= 10) {
-          alert('Du har nådd maksgrensen på 10 fond i denne porteføljesimuleringen.');
+        if (userPortfolioHoldings.length >= 15) {
+          alert('Du har nådd maksgrensen på 15 fond i denne porteføljesimuleringen.');
           return;
         }
         userPortfolioHoldings.push({
@@ -5528,7 +6188,9 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
       }
 
       saveUserPortfolio();
+      renderPortfolioProfileTabs();
       renderUserPortfolioChips();
+      calculateAndRenderStudioPortfolioAnalysis();
 
       // Reset inntastingsfelt
       qtyInput.value = '';
@@ -5546,18 +6208,22 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
       btnAdd.addEventListener('click', addHolding);
     }
 
-    // 6. Tøm alle
+    // 6. Tøm alle i aktiv portefølje
     if (btnClearAll) {
       btnClearAll.addEventListener('click', () => {
-        if (confirm('Er du sikker på at du vil tømme din lagrede portefølje?')) {
+        const active = getActivePortfolio();
+        if (confirm(`Er du sikker på at du vil tømme beholdningene i "${active.name}"?`)) {
           userPortfolioHoldings = [];
+          active.holdings = [];
           saveUserPortfolio();
+          renderPortfolioProfileTabs();
           renderUserPortfolioChips();
+          calculateAndRenderStudioPortfolioAnalysis();
         }
       });
     }
 
-    // 7. Analyser din portefølje (Åpner samme studio som fond valgt)
+    // 7. Beregn kvantitativ analyse (samme logikk som multi-sammenligning)
     if (btnAnalyze) {
       btnAnalyze.addEventListener('click', () => {
         analyzeUserPortfolio();
@@ -5575,44 +6241,29 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     return null;
   }
 
-  function loadSavedUserPortfolio() {
-    try {
-      const saved = localStorage.getItem('etf_user_portfolio_holdings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          userPortfolioHoldings = parsed;
-          renderUserPortfolioChips();
-        }
-      }
-    } catch (e) {}
-  }
-
-  function saveUserPortfolio() {
-    try {
-      localStorage.setItem('etf_user_portfolio_holdings', JSON.stringify(userPortfolioHoldings));
-    } catch (e) {}
-  }
-
   function updateUserPortfolioPrices() {
-    if (!userPortfolioHoldings || !userPortfolioHoldings.length) return;
+    if (!userPortfolios || !userPortfolios.length) return;
     let changed = false;
-    userPortfolioHoldings.forEach(h => {
-      const item = rawData.find(d => d.ISIN === h.isin);
-      if (item) {
-        const newPrice = getETFPrice(item);
-        if (newPrice && newPrice !== h.price) {
-          h.price = newPrice;
-          if (h.unit === 'shares') {
-            h.computedValue = h.rawValue * newPrice;
+    userPortfolios.forEach(port => {
+      (port.holdings || []).forEach(h => {
+        const item = rawData.find(d => d.ISIN === h.isin);
+        if (item) {
+          const newPrice = getETFPrice(item);
+          if (newPrice && newPrice !== h.price) {
+            h.price = newPrice;
+            if (h.unit === 'shares') {
+              h.computedValue = h.rawValue * newPrice;
+            }
+            changed = true;
           }
-          changed = true;
         }
-      }
+      });
     });
     if (changed) {
       saveUserPortfolio();
+      renderPortfolioProfileTabs();
       renderUserPortfolioChips();
+      calculateAndRenderStudioPortfolioAnalysis();
     }
   }
 
@@ -5626,7 +6277,10 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
 
     if (!wrap || !grid) return;
 
-    if (!userPortfolioHoldings.length) {
+    const active = getActivePortfolio();
+    const holdings = active.holdings || [];
+
+    if (!holdings.length) {
       wrap.style.display = 'none';
       if (btnClear) btnClear.style.display = 'none';
       if (btnAnalyze) {
@@ -5639,9 +6293,9 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     wrap.style.display = 'block';
     if (btnClear) btnClear.style.display = 'inline-flex';
 
-    const totalVal = userPortfolioHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+    const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
 
-    grid.innerHTML = userPortfolioHoldings.map((h, idx) => {
+    grid.innerHTML = holdings.map((h, idx) => {
       const weight = Math.max(1, Math.round(((h.computedValue || 0) / totalVal) * 100));
       const valStr = h.unit === 'shares'
         ? `${h.rawValue} stk (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)`
@@ -5661,39 +6315,44 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const isin = btn.dataset.isin;
-        userPortfolioHoldings = userPortfolioHoldings.filter(h => h.isin !== isin);
+        active.holdings = active.holdings.filter(h => h.isin !== isin);
+        userPortfolioHoldings = active.holdings;
         saveUserPortfolio();
+        renderPortfolioProfileTabs();
         renderUserPortfolioChips();
+        calculateAndRenderStudioPortfolioAnalysis();
       });
     });
 
     if (lblCount) {
-      lblCount.textContent = `Dine beholdninger (${userPortfolioHoldings.length} fond valgt)`;
+      lblCount.textContent = `Dine beholdninger (${holdings.length} fond valgt)`;
     }
     if (lblTotal) {
       lblTotal.textContent = `Beregnet totalverdi: ${Math.round(totalVal).toLocaleString('no-NO')} kr (100%)`;
     }
 
     if (btnAnalyze) {
-      const canAnalyze = userPortfolioHoldings.length >= 2;
+      const canAnalyze = holdings.length >= 2;
       btnAnalyze.disabled = !canAnalyze;
       btnAnalyze.title = canAnalyze ? 'Klikk for å åpne full institusjonell risiko- og avkastningsanalyse' : 'Legg til minst 2 fond for å starte analysen';
     }
   }
 
   function analyzeUserPortfolio() {
-    if (userPortfolioHoldings.length < 2) {
+    const active = getActivePortfolio();
+    const holdings = active.holdings || [];
+    if (holdings.length < 2) {
       alert('Legg til minst 2 fond i porteføljen din for å kunne beregne vektet risiko, Sharpe og korrelasjon.');
       return;
     }
 
-    const totalVal = userPortfolioHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
-    const isinList = userPortfolioHoldings.map(h => h.isin);
+    const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+    const isinList = holdings.map(h => h.isin);
 
     portfolioWeights = {};
     let assigned = 0;
-    userPortfolioHoldings.forEach((h, idx) => {
-      if (idx === userPortfolioHoldings.length - 1) {
+    holdings.forEach((h, idx) => {
+      if (idx === holdings.length - 1) {
         portfolioWeights[h.isin] = Math.max(1, 100 - assigned);
       } else {
         const w = Math.round(((h.computedValue || 0) / totalVal) * 100);
