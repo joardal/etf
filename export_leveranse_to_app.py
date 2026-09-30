@@ -45,6 +45,16 @@ def export_data():
     df = pd.read_csv(LEVERANSE_CSV, encoding="utf-8-sig", low_memory=False)
     print(f"Lest {len(df)} rader fra {LEVERANSE_CSV.name}")
 
+    # Berik med statiske felter fra etf_morningstar_komplett.csv hvis tilgjengelig
+    ms_komplett_path = ROOT / "etf_morningstar_komplett.csv"
+    if ms_komplett_path.exists():
+        ms_df = pd.read_csv(ms_komplett_path, encoding="utf-8-sig", low_memory=False)
+        ms_cols = ["ISIN", "Antall_Beholdninger", "Topp_10_Vekt_%", "Risk_vs_Category_3Y", "Return_vs_Category_3Y", "Beregnet_Recovery_Dager", "Beregnet_Drawdown_Peak_Dato", "Beregnet_Drawdown_Valley_Dato"]
+        ms_cols_present = [c for c in ms_cols if c in ms_df.columns]
+        ms_df = ms_df[ms_cols_present].drop_duplicates(subset=["ISIN"])
+        df = df.merge(ms_df, on="ISIN", how="left", suffixes=("", "_ms_komplett"))
+        print(f"Beriket {len(df)} rader med statiske data fra {ms_komplett_path.name}")
+
     # Les teknisk manifest hvis tilgjengelig
     manifest = {}
     if MANIFEST_JSON.exists():
@@ -144,7 +154,14 @@ def export_data():
             "Beregnet_CVaR_95_%": pick_first(row.get("Egen_CVaR95_%")),
             "Beregnet_Siste_Rullerende_Sharpe_1y": pick_first(row.get("Egen_RullSharpe_1Y")),
             "Beregnet_Antall_Dager": pick_first(row.get("Egen_Antall_Dager")),
-            "Beregnet_Status": pick_first(row.get("Egen_Beregn_Status"), row.get("Egen_Status")),
+            # Portefølje og konsentrasjon
+            "Antall_Beholdninger": pick_first(row.get("Antall_Beholdninger"), row.get("Antall_Beholdninger_ms_komplett")),
+            "Topp_10_Vekt_%": pick_first(row.get("Topp_10_Vekt_%"), row.get("Topp_10_Vekt_%_ms_komplett")),
+            "Risk_vs_Category_3Y": pick_first(row.get("Risk_vs_Category_3Y"), row.get("Risk_vs_Category_3Y_ms_komplett")),
+            "Return_vs_Category_3Y": pick_first(row.get("Return_vs_Category_3Y"), row.get("Return_vs_Category_3Y_ms_komplett")),
+            "Beregnet_Recovery_Dager": pick_first(row.get("Beregnet_Recovery_Dager"), row.get("Beregnet_Recovery_Dager_ms_komplett")),
+            "Beregnet_Drawdown_Peak_Dato": pick_first(row.get("Beregnet_Drawdown_Peak_Dato"), row.get("Beregnet_Drawdown_Peak_Dato_ms_komplett")),
+            "Beregnet_Drawdown_Valley_Dato": pick_first(row.get("Beregnet_Drawdown_Valley_Dato"), row.get("Beregnet_Drawdown_Valley_Dato_ms_komplett")),
             
             # Beta, Alpha & R²
             "Beta_1Y": pick_first(row.get("Egen_Beta_1Y"), row.get("MS_Beta_1Y")),

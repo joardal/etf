@@ -286,12 +286,24 @@
     'Navn_Morningstar': 'Fond Navn',
   };
 
-  // 3 initial custom filter rules as requested by user
-  let filterRules = [
-    { field: 'Avkastning_12M_%', op: 'gte', value: '10' },
-    { field: 'Standardavvik_3Y_%', op: 'lte', value: '18' },
-    { field: 'Sharpe_3Y', op: 'gte', value: '0.8' },
-  ];
+  // Taktisk markedstilstand & Porteføljestudio
+  let hideGeared = true; // Skjul 2x/3x/Bull/Bear som standard
+  let activeTrendPreset = null; // 'above_sma200' | 'golden_cross' | 'near_ath' | 'dip_buyer'
+  let compareLoadedData = []; // Lagrer innlastede kursrekker for sammenligning/korrelasjon
+  let portfolioWeights = {}; // ISIN -> vekt %
+
+  function isGearedOrDerivative(item) {
+    if (!item) return false;
+    const cat = ((item.Kategori_Morningstar || '') + ' ' + (item.Nordnet_Kategori || '')).toLowerCase();
+    if (cat.includes('trading tools') || cat.includes('options trading')) return true;
+    const name = ((item.Navn_Morningstar || '') + ' ' + (item.Navn_Fil || '')).toLowerCase();
+    if (/\b(bull|bear|inverse|leveraged|lvrgd|2x|3x|-1x|-2x|-3x)\b|\(2x\)|\(3x\)/i.test(name)) return true;
+    if (/\b(daily short|shortdax|shdly|short swap|2x short)\b/i.test(name)) return true;
+    return false;
+  }
+
+  // Dynamiske filterregler (standard er ingen aktive filtre, brukeren kan legge til ved behov)
+  let filterRules = [];
 
   // Tabell-kolonne definisjoner for ulike visninger
   const TABLE_VIEWS = {
@@ -589,6 +601,8 @@
       }
     });
 
+    renderMarketBreadth();
+
     elHeaderCount.textContent = `${rawData.length.toLocaleString('no-NO')} ETF-er lastet inn`;
 
     // Populate category dropdown
@@ -603,6 +617,9 @@
 
     // Setup event listeners
     setupEventListeners();
+
+    // Setup Egen Portefølje seksjon
+    initUserPortfolioSection();
 
     // Setup Chart Studio (TradingView-stil Kursgraf)
     initChartStudio();
@@ -627,8 +644,11 @@
             item.ATH = entry.ath;
             item.Above_SMA200 = entry.above_sma200;
             item.Above_SMA50 = entry.above_sma50;
+            item.Last_Price = entry.last_price;
           }
         });
+        updateUserPortfolioPrices();
+        renderMarketBreadth();
         if (activeTableView === 'overview') {
           renderTable();
         }
@@ -672,6 +692,10 @@
   // Render the filter rows in the control panel
   function renderFilterBuilder() {
     elFilterRows.innerHTML = '';
+    if (filterRules.length === 0) {
+      elFilterRows.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted); padding: 0.35rem 0.2rem; font-style: italic;">Ingen aktive filterregler. Klikk «+ Legg til ekstra filter» over for å sette egne grenser for avkastning, Sharpe, volatilitet osv.</div>';
+      return;
+    }
     filterRules.forEach((rule, idx) => {
       const row = document.createElement('div');
       row.className = 'filter-row';
@@ -908,21 +932,80 @@
       elSearchClear.style.display = 'none';
       elCategoryFilter.value = '';
       elNordnetCategoryFilter.value = '';
-      filterRules = [
-        { field: 'Avkastning_12M_%', op: 'gte', value: '' },
-        { field: 'Standardavvik_3Y_%', op: 'lte', value: '' },
-        { field: 'Sharpe_3Y', op: 'gte', value: '' },
-      ];
+      activeTrendPreset = null;
+      document.querySelectorAll('.preset-pill-trend').forEach(btn => btn.classList.remove('active'));
+      filterRules = [];
       renderFilterBuilder();
       applyFilters();
     });
 
-    // Preset pills
+    // Preset pills (Fundamentalt & Trend)
     document.querySelectorAll('.preset-pill').forEach(pill => {
       pill.addEventListener('click', () => {
+        if (pill.dataset.action === 'toggle-geared') return;
         applyPreset(pill.dataset.preset);
       });
     });
+
+    // Toggle for gearede/derivat-fond
+    const btnToggleGeared = document.getElementById('btn-toggle-geared');
+    if (btnToggleGeared) {
+      btnToggleGeared.addEventListener('click', () => {
+        hideGeared = !hideGeared;
+        btnToggleGeared.classList.toggle('active', hideGeared);
+        btnToggleGeared.textContent = hideGeared ? '🛡️ Skjuler gearede fond (46)' : '⚠️ Viser alle (inkl. gearede)';
+        applyFilters();
+      });
+    }
+
+    // Breadth barometer hurtigfilter
+    const btnBreadthFilter = document.getElementById('btn-breadth-filter-uptrend');
+    if (btnBreadthFilter) {
+      btnBreadthFilter.addEventListener('click', () => {
+        applyPreset('above_sma200');
+      });
+    }
+
+    // Delta modal (Siste trendskifter)
+    const btnOpenDelta = document.getElementById('btn-open-delta-modal');
+    const elDeltaModal = document.getElementById('delta-modal');
+    const btnCloseDelta = document.getElementById('delta-modal-close-btn');
+
+    if (btnOpenDelta && elDeltaModal) {
+      btnOpenDelta.addEventListener('click', () => {
+        renderDeltaModal();
+        elDeltaModal.style.display = 'flex';
+      });
+    }
+    if (btnCloseDelta && elDeltaModal) {
+      btnCloseDelta.addEventListener('click', () => {
+        elDeltaModal.style.display = 'none';
+      });
+    }
+    if (elDeltaModal) {
+      elDeltaModal.addEventListener('click', (e) => {
+        if (e.target === elDeltaModal) elDeltaModal.style.display = 'none';
+      });
+    }
+
+    // Delta modal fane-bytte
+    document.querySelectorAll('.delta-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.delta-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.delta-pane').forEach(p => p.style.display = 'none');
+        btn.classList.add('active');
+        const target = document.getElementById(btn.dataset.dtab);
+        if (target) target.style.display = 'block';
+      });
+    });
+
+    // Factsheet print-knapp i fond-modal
+    const btnPrintFactsheet = document.getElementById('modal-print-factsheet-btn');
+    if (btnPrintFactsheet) {
+      btnPrintFactsheet.addEventListener('click', () => {
+        window.print();
+      });
+    }
 
     // Table View Tabs
     const tabBtns = document.querySelectorAll('.table-tab-btn');
@@ -1139,41 +1222,45 @@
 
   // Quick preset filters handler
   function applyPreset(preset) {
+    const trendPresets = ['above_sma200', 'golden_cross', 'near_ath', 'dip_buyer'];
+    if (trendPresets.includes(preset)) {
+      if (activeTrendPreset === preset) {
+        activeTrendPreset = null; // Toggle av hvis allerede aktiv
+      } else {
+        activeTrendPreset = preset;
+      }
+      document.querySelectorAll('.preset-pill-trend').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.preset === activeTrendPreset);
+      });
+      applyFilters();
+      return;
+    }
+
     if (preset === 'sharpe_high') {
       filterRules = [
         { field: 'Sharpe_3Y', op: 'gte', value: '1.0' },
-        { field: 'Avkastning_12M_%', op: 'gte', value: '' },
-        { field: 'Standardavvik_3Y_%', op: 'lte', value: '' },
       ];
     } else if (preset === 'return_15') {
       filterRules = [
         { field: 'Avkastning_12M_%', op: 'gte', value: '15' },
-        { field: 'Sharpe_3Y', op: 'gte', value: '' },
-        { field: 'Standardavvik_3Y_%', op: 'lte', value: '' },
       ];
     } else if (preset === 'stddev_low') {
       filterRules = [
         { field: 'Standardavvik_3Y_%', op: 'lte', value: '12' },
         { field: 'Sharpe_3Y', op: 'gte', value: '0.8' },
-        { field: 'Avkastning_12M_%', op: 'gte', value: '' },
       ];
     } else if (preset === 'drawdown_safe') {
       filterRules = [
         { field: 'Max_Drawdown_3Y_%', op: 'gte', value: '-15' },
         { field: 'Avkastning_12M_%', op: 'gte', value: '5' },
-        { field: 'Sharpe_3Y', op: 'gte', value: '' },
       ];
     } else if (preset === 'low_fee') {
       filterRules = [
         { field: 'Aarlig_Avgift_%', op: 'lte', value: '0.20' },
-        { field: 'Avkastning_12M_%', op: 'gte', value: '' },
-        { field: 'Sharpe_3Y', op: 'gte', value: '' },
       ];
     } else if (preset === 'large_aum') {
       filterRules = [
         { field: 'AUM_Verdi', op: 'gte', value: '1000000000' },
-        { field: 'Avkastning_12M_%', op: 'gte', value: '' },
-        { field: 'Sharpe_3Y', op: 'gte', value: '' },
       ];
     }
     renderFilterBuilder();
@@ -1187,6 +1274,27 @@
     const selNordnetCat = elNordnetCategoryFilter.value;
 
     filteredData = rawData.filter(item => {
+      // 0. Skjul gearede og derivat-produkter hvis aktivert
+      if (hideGeared && isGearedOrDerivative(item)) {
+        return false;
+      }
+
+      // 0b. Taktiske trendfiltre
+      if (activeTrendPreset === 'above_sma200' && item.Above_SMA200 !== true) {
+        return false;
+      }
+      if (activeTrendPreset === 'golden_cross' && (item.Above_SMA200 !== true || item.Above_SMA50 !== true)) {
+        return false;
+      }
+      if (activeTrendPreset === 'near_ath') {
+        const pct = item.Pct_ATH !== undefined && item.Pct_ATH !== null ? parseFloat(item.Pct_ATH) : null;
+        if (pct === null || isNaN(pct) || pct < -3.0) return false;
+      }
+      if (activeTrendPreset === 'dip_buyer') {
+        const pct = item.Pct_ATH !== undefined && item.Pct_ATH !== null ? parseFloat(item.Pct_ATH) : null;
+        if (item.Above_SMA200 !== true || pct === null || isNaN(pct) || pct > -4.0 || pct < -18.0) return false;
+      }
+
       // 1. Text Search (Name, ISIN, Ticker, Benchmark)
       if (query) {
         const nameM = (item.Navn_Morningstar || '').toLowerCase();
@@ -1355,9 +1463,19 @@
       return `<span class="${cls}">${num > 0 ? '+' : ''}${num.toFixed(2)}%</span>`;
     };
 
-    const fmtNum = (val, dec = 2, suffix = '') => {
+    const fmtNum = (val, dec = 2, suffix = '', item = null, key = '') => {
       if (val === null || val === undefined || isNaN(val) || val === '') return '<span class="text-muted">—</span>';
-      return `${parseFloat(val).toFixed(dec)}${suffix}`;
+      const num = parseFloat(val);
+      let extraCls = '';
+      let titleAttr = '';
+      if ((key === 'Beta_1Y' || key === 'Beta_3Y' || key === 'Beta_5Y' || key.includes('Alpha')) && item) {
+        const r2 = parseFloat(item.R2_3Y);
+        if (!isNaN(r2) && (r2 < 0.50 || (r2 < 50 && r2 > 1.0))) {
+          extraCls = 'r2-low-warning';
+          titleAttr = ` title="Lav R² (${r2}) mot indeks – Beta og Alpha har lav forklaringskraft"`;
+        }
+      }
+      return `<span class="${extraCls}"${titleAttr}>${num.toFixed(dec)}${suffix}</span>`;
     };
 
     const fmtAUM = (val) => {
@@ -1368,11 +1486,12 @@
       return num.toLocaleString('no-NO');
     };
 
-    const fmtSharpe = (val) => {
+    const fmtSharpe = (val, item = null, key = '') => {
       if (val === null || val === undefined || isNaN(val) || val === '') return '<span class="text-muted">—</span>';
       const s = parseFloat(val);
       const cls = s >= 1.0 ? 'text-indigo font-bold' : (s < 0 ? 'text-rose' : '');
-      return `<span class="${cls}">${s.toFixed(2)}</span>`;
+      const isShort = (key === 'Sharpe_3Y' || key === 'Sharpe_5Y') && item && item.Beregnet_Antall_Dager && item.Beregnet_Antall_Dager < 750;
+      return `<span class="${cls}">${s.toFixed(2)}</span>${isShort ? `<span class="badge-short-hist" title="Merk: Fondet har kun ${item.Beregnet_Antall_Dager} dagers historikk (&lt; 3 år)">⚠️</span>` : ''}`;
     };
 
     const fmtDD = (val) => {
@@ -1418,13 +1537,13 @@
         } else if (col.type === 'pct') {
           rowHtml += `<td class="col-num">${fmtPct(val)}</td>`;
         } else if (col.type === 'sharpe') {
-          rowHtml += `<td class="col-num">${fmtSharpe(val)}</td>`;
+          rowHtml += `<td class="col-num">${fmtSharpe(val, item, col.key)}</td>`;
         } else if (col.type === 'dd') {
           rowHtml += `<td class="col-num">${fmtDD(val)}</td>`;
         } else if (col.type === 'aum') {
           rowHtml += `<td class="col-num">${fmtAUM(val)}</td>`;
         } else if (col.type === 'num') {
-          rowHtml += `<td class="col-num">${fmtNum(val, 2, col.suffix || '')}</td>`;
+          rowHtml += `<td class="col-num">${fmtNum(val, 2, col.suffix || '', item, col.key)}</td>`;
         } else {
           rowHtml += `<td class="col-text" title="${val || ''}">${val || '<span class="text-muted">—</span>'}</td>`;
         }
@@ -1700,7 +1819,8 @@
   // ==========================================================================
   // Gemini AI Fondsrådgiver (Chat Widget)
   // ==========================================================================
-  const DEFAULT_GEMINI_API_KEY = '';
+  const DEFAULT_GEMINI_API_KEY = 'AIzaSyA9NKNCVSG_jz91sGSmLONMZJ9Gem2stII';
+  let activeAiModel = localStorage.getItem('etf_ai_model') || 'fast'; // 'fast' or 'smart'
   let currentlyInspectedItem = null;
 
   function getGeminiApiKey() {
@@ -1744,51 +1864,168 @@
 
   function formatAiMarkdown(text) {
     if (!text) return '';
-    let html = text
+
+    // 1. Unnslipp rå HTML-tegn
+    let escaped = text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    
-    // Bold
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // Italic
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-    // Split into paragraphs / lists
-    const lines = html.split('\n');
+
+    // 2. Skjul og ta vare på flerlinjers kodeblokker ```...```
+    const codeBlocks = [];
+    escaped = escaped.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/gi, (match, lang, code) => {
+      const placeholder = `___CODEBLOCK_${codeBlocks.length}___`;
+      codeBlocks.push(`<pre class="ai-code-block"><code>${code.trim()}</code></pre>`);
+      return placeholder;
+    });
+
+    // 3. Inline-kode `kode`
+    escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // 4. Fet og kursiv
+    escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    escaped = escaped.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+    escaped = escaped.replace(/(^|[^\*])\*([^\*]+?)\*([^\*]|$)/g, '$1<em>$2</em>$3');
+    escaped = escaped.replace(/(^|[^_])_([^_]+?)_([^_]|$)/g, '$1<em>$2</em>$3');
+
+    // 5. Linjebasert parsing for overskrifter, lister, tabeller, hr og avsnitt
+    const lines = escaped.split('\n');
     let inList = false;
     let listType = 'ul';
-    let result = '';
+    let inTable = false;
+    let tableHtml = '';
+    const output = [];
 
-    lines.forEach(line => {
+    const closeList = () => {
+      if (inList) {
+        output.push(listType === 'ul' ? '</ul>' : '</ol>');
+        inList = false;
+      }
+    };
+
+    const closeTable = () => {
+      if (inTable) {
+        output.push(`<table>${tableHtml}</tbody></table>`);
+        tableHtml = '';
+        inTable = false;
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmed = line.trim();
+
+      if (!trimmed) {
+        closeList();
+        closeTable();
+        continue;
+      }
+
+      // Horisontal linje (--- eller ***)
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        closeList();
+        closeTable();
+        output.push('<hr>');
+        continue;
+      }
+
+      // Overskrifter (#, ##, ###, ####, #####, ######)
+      if (/^######\s+(.*)/.test(trimmed)) {
+        closeList();
+        closeTable();
+        output.push(`<h6>${trimmed.replace(/^######\s+/, '')}</h6>`);
+        continue;
+      }
+      if (/^#####\s+(.*)/.test(trimmed)) {
+        closeList();
+        closeTable();
+        output.push(`<h5>${trimmed.replace(/^#####\s+/, '')}</h5>`);
+        continue;
+      }
+      if (/^####\s+(.*)/.test(trimmed)) {
+        closeList();
+        closeTable();
+        output.push(`<h4>${trimmed.replace(/^####\s+/, '')}</h4>`);
+        continue;
+      }
+      if (/^###\s+(.*)/.test(trimmed)) {
+        closeList();
+        closeTable();
+        output.push(`<h3>${trimmed.replace(/^###\s+/, '')}</h3>`);
+        continue;
+      }
+      if (/^##\s+(.*)/.test(trimmed)) {
+        closeList();
+        closeTable();
+        output.push(`<h2>${trimmed.replace(/^##\s+/, '')}</h2>`);
+        continue;
+      }
+      if (/^#\s+(.*)/.test(trimmed)) {
+        closeList();
+        closeTable();
+        output.push(`<h2>${trimmed.replace(/^#\s+/, '')}</h2>`);
+        continue;
+      }
+
+      // Tabeller (| Kolonne 1 | Kolonne 2 |)
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        closeList();
+        const cells = trimmed.slice(1, -1).split('|').map(c => c.trim());
+        const isSeparator = cells.every(c => /^:?-+:?$/.test(c));
+        if (isSeparator) {
+          continue;
+        }
+        if (!inTable) {
+          inTable = true;
+          tableHtml = '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+        } else {
+          tableHtml += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+        }
+        continue;
+      } else {
+        closeTable();
+      }
+
+      // Lister
       if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-        if (!inList) {
-          result += '<ul>';
+        if (!inList || listType !== 'ul') {
+          closeList();
+          output.push('<ul>');
           inList = true;
           listType = 'ul';
         }
-        result += `<li>${trimmed.substring(2)}</li>`;
-      } else if (/^\d+\.\s/.test(trimmed)) {
-        if (!inList) {
-          result += '<ol>';
+        output.push(`<li>${trimmed.substring(2)}</li>`);
+        continue;
+      }
+
+      if (/^\d+\.\s+/.test(trimmed)) {
+        if (!inList || listType !== 'ol') {
+          closeList();
+          output.push('<ol>');
           inList = true;
           listType = 'ol';
         }
-        result += `<li>${trimmed.replace(/^\d+\.\s/, '')}</li>`;
-      } else {
-        if (inList) {
-          result += listType === 'ul' ? '</ul>' : '</ol>';
-          inList = false;
-        }
-        if (trimmed) {
-          result += `<p>${trimmed}</p>`;
-        }
+        output.push(`<li>${trimmed.replace(/^\d+\.\s+/, '')}</li>`);
+        continue;
       }
+
+      closeList();
+
+      // Vanlig tekst-avsnitt
+      output.push(`<p>${trimmed}</p>`);
+    }
+
+    closeList();
+    closeTable();
+
+    let finalHtml = output.join('');
+
+    // Sett inn igjen flerlinjers kodeblokker
+    codeBlocks.forEach((block, idx) => {
+      finalHtml = finalHtml.replace(`___CODEBLOCK_${idx}___`, block);
     });
 
-    if (inList) result += listType === 'ul' ? '</ul>' : '</ol>';
-    return result;
+    return finalHtml;
   }
 
   function appendAiMessage(role, text) {
@@ -1884,13 +2121,75 @@
 
     const apiKey = getGeminiApiKey();
 
-    // Samle kontekst for prompten
+    // Samle dyp og helhetlig kontekst for prompten
     let contextPrompt = 'KONTEKST FRA ETF ANALYTICS PRO:\n';
 
+    // 1. Brukerens Egen Portefølje
+    if (userPortfolioHoldings && userPortfolioHoldings.length > 0) {
+      const totalPortVal = userPortfolioHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+      const portDetails = userPortfolioHoldings.map(h => {
+        const w = Math.round(((h.computedValue || 0) / totalPortVal) * 100);
+        return {
+          Ticker: h.ticker,
+          ISIN: h.isin,
+          Navn: h.name,
+          Andel_Prosent: `${w}%`,
+          Investering: h.unit === 'shares'
+            ? `${h.rawValue} andeler (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)`
+            : `${Math.round(h.rawValue).toLocaleString('no-NO')} kr`
+        };
+      });
+
+      contextPrompt += `=== BRUKERENS FAKTISKE PORTEFØLJE (Lagt inn av brukeren på toppen av siden) ===\n`;
+      contextPrompt += `Total beregnet verdi: ${Math.round(totalPortVal).toLocaleString('no-NO')} kr\n`;
+      contextPrompt += `Antall fond: ${userPortfolioHoldings.length}\n`;
+      contextPrompt += `Fondssammensetning og vekting:\n` + JSON.stringify(portDetails, null, 2) + `\n`;
+
+      const elPortCagr = document.getElementById('port-cagr');
+      const elPortSharpe = document.getElementById('port-sharpe');
+      const elPortVol = document.getElementById('port-vol');
+      const elPortMaxDD = document.getElementById('port-maxdd');
+      if (elPortCagr && elPortCagr.textContent !== '—%') {
+        contextPrompt += `Beregnet historisk risiko & avkastning for denne porteføljen:\n`;
+        contextPrompt += `- Årlig avkastning (CAGR): ${elPortCagr.textContent}\n`;
+        contextPrompt += `- Sharpe Ratio: ${elPortSharpe ? elPortSharpe.textContent : '—'}\n`;
+        contextPrompt += `- Volatilitet (årlig standardavvik): ${elPortVol ? elPortVol.textContent : '—'}\n`;
+        contextPrompt += `- Maksimal Drawdown: ${elPortMaxDD ? elPortMaxDD.textContent : '—'}\n`;
+      }
+      contextPrompt += `\n`;
+    } else {
+      contextPrompt += `Brukeren har foreløpig ikke lagt inn en egen portefølje i porteføljebyggeren.\n\n`;
+    }
+
+    // 2. Markedsbredde & Taktisk Regime akkurat nå
+    const elTotVal = document.getElementById('breadth-val-total');
+    const elRegime = document.getElementById('breadth-regime-label');
+    const elEqVal = document.getElementById('breadth-val-equity');
+    const elBndVal = document.getElementById('breadth-val-bonds');
+    const elCommVal = document.getElementById('breadth-val-comm');
+    if (elTotVal) {
+      contextPrompt += `=== AKTUELT MARKEDSBREDDE & TAKTISK REGIME PÅ SKJERMEN ===\n`;
+      contextPrompt += `- Totalt Marked over SMA 200: ${elTotVal.textContent} (${elRegime ? elRegime.textContent.trim() : ''})\n`;
+      contextPrompt += `- Aksjer over SMA 200: ${elEqVal ? elEqVal.textContent : '—'}\n`;
+      contextPrompt += `- Renter over SMA 200: ${elBndVal ? elBndVal.textContent : '—'}\n`;
+      contextPrompt += `- Råvarer over SMA 200: ${elCommVal ? elCommVal.textContent : '—'}\n\n`;
+    }
+
+    // 3. Valgte fond i tabellen (sammenligningsdokk)
+    if (selectedCompareISINs && selectedCompareISINs.size > 0) {
+      const compFunds = Array.from(selectedCompareISINs).map(isin => {
+        const item = rawData.find(d => d.ISIN === isin);
+        return item ? `${item.Kortnavn || isin} (${item.Navn_Morningstar || item.Navn_Fil || isin})` : isin;
+      });
+      contextPrompt += `Brukeren har valgt disse ${compFunds.length} fondene til sammenligning: ${compFunds.join(', ')}\n\n`;
+    }
+
+    // 4. Aktivt inspisert fond (hvis åpent)
     if (currentlyInspectedItem) {
       contextPrompt += `Brukeren undersøker for øyeblikket dette spesifikke fondet i detalj:\n`;
       contextPrompt += JSON.stringify({
         ISIN: currentlyInspectedItem.ISIN,
+        Ticker: currentlyInspectedItem.Kortnavn,
         Navn: currentlyInspectedItem.Navn_Morningstar || currentlyInspectedItem.Navn_Fil,
         Kategori: currentlyInspectedItem.Kategori_Morningstar,
         Benchmark: currentlyInspectedItem.Benchmark_Navn,
@@ -1911,7 +2210,9 @@
         'Standardavvik_3Y_%': currentlyInspectedItem['Standardavvik_3Y_%'],
         Sortino: currentlyInspectedItem.Beregnet_Sortino_Ratio,
         'Aarlig_Avgift_%': currentlyInspectedItem['Aarlig_Avgift_%'],
-        AUM: currentlyInspectedItem.AUM_Verdi
+        AUM: currentlyInspectedItem.AUM_Verdi,
+        Antall_Beholdninger: currentlyInspectedItem.Antall_Beholdninger,
+        'Topp_10_Vekt_%': currentlyInspectedItem['Topp_10_Vekt_%']
       }, null, 2) + '\n\n';
     }
 
@@ -1924,8 +2225,9 @@
     const systemInstruction = `Du er en erfaren og institusjonell ETF- og porteføljerådgiver i ETF Analytics Pro.
 Du svarer alltid på profesjonelt, pedagogisk og klart norsk med et lite glimt i øyet.
 Ikke nevn hvilken spesifikk underliggende AI-modell du er hvis du blir spurt – du er rett og slett bare den overlegne og alltid opplagte AI-fondsrådgiveren i systemet.
+Du har full innsikt i brukerens faktiske portefølje (hvis lagt inn), markedsbredden og alle 2 238 ETF-ene i databasen.
 Bruk konkrete tall (Sharpe 1-5Y, Beta 1-5Y, Alpha 1-5Y, Max Drawdown 1-5Y, Sortino og årlige avgifter) for å underbygge resonnementene dine.
-Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. bort fra teknologi), skal du foreslå konkrete fond med ISIN og navn fra den oppgitte konteksten eller andre anerkjente UCITS ETF-er, og tydelig sammenligne risiko/avkastning mot fondet brukeren har. Vær konsis og strukturer svaret med kulepunkter.`;
+Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifisering, skal du henvise direkte til deres faktiske fond og foreslå konkrete UCITS ETF-er med ISIN og ticker for å forbedre risikojustert avkastning. Vær konsis og strukturer svaret med kulepunkter.`;
 
     const contents = [
       {
@@ -1934,12 +2236,31 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
       }
     ];
 
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
+    const primaryModel = activeAiModel === 'smart' ? 'gemini-flash-latest' : 'gemini-3.5-flash';
+    const fallbackModel = activeAiModel === 'smart' ? 'gemini-3.5-flash' : 'gemini-flash-latest';
+
+    async function callModel(modelName) {
+      return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents })
       });
+    }
+
+    try {
+      let res = await callModel(primaryModel);
+      let usedFallback = false;
+
+      if (!res.ok) {
+        console.warn(`Primærmodell ${primaryModel} feilet med HTTP ${res.status}. Forsøker reservemodell ${fallbackModel}...`);
+        try {
+          const fallbackRes = await callModel(fallbackModel);
+          if (fallbackRes.ok) {
+            res = fallbackRes;
+            usedFallback = true;
+          }
+        } catch (fbErr) {}
+      }
 
       hideTypingIndicator();
 
@@ -1951,7 +2272,10 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
       }
 
       const data = await res.json();
-      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Fikk ikke noe tekstsvar fra modellen.';
+      let reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Fikk ikke noe tekstsvar fra modellen.';
+      if (usedFallback) {
+        reply = `*(Merk: Svarte via reservemodell da primærmodellen opplevde midlertidig ventetid)*\n\n` + reply;
+      }
       appendAiMessage('model', reply);
 
     } catch (e) {
@@ -1965,6 +2289,8 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
   function setupAiChatEventListeners() {
     const elToggleBtn = document.getElementById('ai-chat-toggle-btn');
     const elCloseBtn = document.getElementById('ai-close-btn');
+    const elFullscreenBtn = document.getElementById('ai-fullscreen-btn');
+    const elAiPanel = document.getElementById('ai-chat-panel');
     const elSendBtn = document.getElementById('ai-send-btn');
     const elUserInput = document.getElementById('ai-user-input');
     const elSettingsBtn = document.getElementById('ai-settings-btn');
@@ -1973,6 +2299,42 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     const elSaveKeyBtn = document.getElementById('ai-save-key-btn');
     const elClearBtn = document.getElementById('ai-clear-btn');
     const elModalAskAi = document.getElementById('modal-ask-ai-btn');
+
+    // Fullskjerm-toggle for AI Fondsrådgiver
+    if (elFullscreenBtn && elAiPanel) {
+      elFullscreenBtn.addEventListener('click', () => {
+        const isFull = elAiPanel.classList.toggle('ai-panel-fullscreen');
+        elFullscreenBtn.innerHTML = isFull ? '🗗' : '⛶';
+        elFullscreenBtn.title = isFull ? 'Gjenopprett normal størrelse' : 'Utvid til fullskjerm';
+      });
+    }
+
+    // Modell-velger: Rask & Smart vs Litt tregere & smartere
+    const btnModelFast = document.getElementById('btn-model-fast');
+    const btnModelSmart = document.getElementById('btn-model-smart');
+    if (btnModelFast && btnModelSmart) {
+      if (activeAiModel === 'smart') {
+        btnModelSmart.classList.add('active');
+        btnModelFast.classList.remove('active');
+      } else {
+        btnModelFast.classList.add('active');
+        btnModelSmart.classList.remove('active');
+      }
+
+      btnModelFast.addEventListener('click', () => {
+        activeAiModel = 'fast';
+        localStorage.setItem('etf_ai_model', 'fast');
+        btnModelFast.classList.add('active');
+        btnModelSmart.classList.remove('active');
+      });
+
+      btnModelSmart.addEventListener('click', () => {
+        activeAiModel = 'smart';
+        localStorage.setItem('etf_ai_model', 'smart');
+        btnModelSmart.classList.add('active');
+        btnModelFast.classList.remove('active');
+      });
+    }
 
     if (elToggleBtn) {
       elToggleBtn.addEventListener('click', () => {
@@ -1986,7 +2348,14 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     }
 
     if (elCloseBtn) {
-      elCloseBtn.addEventListener('click', closeAiChat);
+      elCloseBtn.addEventListener('click', () => {
+        if (elAiPanel) elAiPanel.classList.remove('ai-panel-fullscreen');
+        if (elFullscreenBtn) {
+          elFullscreenBtn.innerHTML = '⛶';
+          elFullscreenBtn.title = 'Utvid til fullskjerm';
+        }
+        closeAiChat();
+      });
     }
 
     if (elSendBtn && elUserInput) {
@@ -2755,40 +3124,59 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     const btnBenchmark = document.getElementById('btn-toggle-benchmark');
     const tabGraph = document.getElementById('tab-btn-graph');
     const tabHeatmap = document.getElementById('tab-btn-heatmap');
+    const tabCorrelation = document.getElementById('tab-btn-correlation');
+    const tabPortfolio = document.getElementById('tab-btn-portfolio');
     const mainContainer = document.getElementById('chart-container-main');
     const subContainer = document.getElementById('chart-container-sub');
     const heatContainer = document.getElementById('chart-heatmap-container');
+    const corrContainer = document.getElementById('chart-correlation-container');
+    const portContainer = document.getElementById('chart-portfolio-container');
     const liveLegend = document.getElementById('chart-live-legend');
     const chartToolbar = document.querySelector('.chart-studio-toolbar');
 
-    // Fane-bytte: Kurs & Analyse vs Månedsmatrise
-    if (tabGraph && tabHeatmap) {
-      tabGraph.addEventListener('click', () => {
-        tabGraph.classList.add('active');
-        tabHeatmap.classList.remove('active');
-        csState.activeTab = 'graph';
-        if (heatContainer) heatContainer.style.display = 'none';
-        if (mainContainer) mainContainer.style.display = 'block';
-        if (liveLegend) liveLegend.style.display = 'flex';
-        if (chartToolbar) chartToolbar.style.display = 'flex';
-        if (csState.subIndicator && subContainer) subContainer.style.display = 'block';
-        setTimeout(resizeCharts, 30);
+    // Fane-bytte i Studio (Kurs & Analyse, Månedsmatrise, Korrelasjon, Portefølje)
+    window.switchStudioTab = function(tabName) {
+      csState.activeTab = tabName;
+      [tabGraph, tabHeatmap, tabCorrelation, tabPortfolio].forEach(b => {
+        if (b) b.classList.toggle('active', b.id === `tab-btn-${tabName}`);
       });
 
-      tabHeatmap.addEventListener('click', () => {
-        tabHeatmap.classList.add('active');
-        tabGraph.classList.remove('active');
-        csState.activeTab = 'heatmap';
-        if (mainContainer) mainContainer.style.display = 'none';
-        if (subContainer) subContainer.style.display = 'none';
-        if (liveLegend) liveLegend.style.display = 'none';
-        if (chartToolbar) chartToolbar.style.display = 'none';
-        if (heatContainer) {
-          heatContainer.style.display = 'flex';
-          renderMonthlyHeatmap(csState.item, csState.rawPriceData);
+      if (mainContainer) mainContainer.style.display = tabName === 'graph' ? 'block' : 'none';
+      if (subContainer) subContainer.style.display = (tabName === 'graph' && csState.subIndicator) ? 'block' : 'none';
+      if (liveLegend) liveLegend.style.display = tabName === 'graph' ? 'flex' : 'none';
+      if (chartToolbar) chartToolbar.style.display = tabName === 'graph' ? 'flex' : 'none';
+
+      if (heatContainer) heatContainer.style.display = tabName === 'heatmap' ? 'flex' : 'none';
+      if (corrContainer) corrContainer.style.display = tabName === 'correlation' ? 'block' : 'none';
+      if (portContainer) portContainer.style.display = tabName === 'portfolio' ? 'block' : 'none';
+
+      if (tabName === 'graph') {
+        if (csState.isComparisonMode && !csState.mainChart && compareLoadedData && compareLoadedData.length) {
+          renderComparisonChart(compareLoadedData);
         }
-      });
-    }
+        setTimeout(resizeCharts, 30);
+      } else if (tabName === 'heatmap') {
+        renderMonthlyHeatmap(csState.item, csState.rawPriceData);
+      } else if (tabName === 'correlation') {
+        renderCorrelationMatrix(compareLoadedData);
+      } else if (tabName === 'portfolio') {
+        renderPortfolioStudio(compareLoadedData);
+        if (portfolioChartInstance) {
+          setTimeout(() => {
+            const chartContainer = document.getElementById('portfolio-equity-chart');
+            if (chartContainer && portfolioChartInstance) {
+              portfolioChartInstance.resize(chartContainer.clientWidth, 260);
+              portfolioChartInstance.timeScale().fitContent();
+            }
+          }, 50);
+        }
+      }
+    };
+
+    if (tabGraph) tabGraph.addEventListener('click', () => switchStudioTab('graph'));
+    if (tabHeatmap) tabHeatmap.addEventListener('click', () => switchStudioTab('heatmap'));
+    if (tabCorrelation) tabCorrelation.addEventListener('click', () => switchStudioTab('correlation'));
+    if (tabPortfolio) tabPortfolio.addEventListener('click', () => switchStudioTab('portfolio'));
 
     // Lukk modal
     if (elClose) {
@@ -2975,6 +3363,14 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
         height: subContainer.clientHeight || 140
       });
     }
+    const portContainer = document.getElementById('portfolio-equity-chart');
+    if (portfolioChartInstance && portContainer && portContainer.clientWidth) {
+      portfolioChartInstance.applyOptions({
+        width: portContainer.clientWidth,
+        height: 260
+      });
+      portfolioChartInstance.timeScale().fitContent();
+    }
   }
 
   function closeChartStudio() {
@@ -3003,6 +3399,10 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
       csState.subChart = null;
       csState.subSeries = null;
       csState.subLines = [];
+    }
+    if (portfolioChartInstance) {
+      try { portfolioChartInstance.remove(); } catch (e) {}
+      portfolioChartInstance = null;
     }
   }
 
@@ -3034,6 +3434,19 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     const chartToolbar = document.querySelector('.chart-studio-toolbar');
     const tabGraph = document.getElementById('tab-btn-graph');
     const tabHeatmap = document.getElementById('tab-btn-heatmap');
+    const tabCorr = document.getElementById('tab-btn-correlation');
+    const tabPort = document.getElementById('tab-btn-portfolio');
+
+    const corrContainer = document.getElementById('chart-correlation-container');
+    const portContainer = document.getElementById('chart-portfolio-container');
+    if (corrContainer) corrContainer.style.display = 'none';
+    if (portContainer) portContainer.style.display = 'none';
+
+    if (tabCorr) tabCorr.style.display = 'none';
+    if (tabPort) tabPort.style.display = 'none';
+    if (csState.activeTab === 'correlation' || csState.activeTab === 'portfolio') {
+      csState.activeTab = 'graph';
+    }
 
     if (csState.activeTab === 'heatmap') {
       if (tabHeatmap) tabHeatmap.classList.add('active');
@@ -3852,14 +4265,27 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
       };
     }
 
+    const btnLaunchCorr = document.getElementById('btn-launch-correlation');
+    const btnLaunchPort = document.getElementById('btn-launch-portfolio');
+
     if (btnLaunch) {
       btnLaunch.onclick = () => {
-        openComparisonStudio(Array.from(selectedCompareISINs));
+        openComparisonStudio(Array.from(selectedCompareISINs), 'graph');
+      };
+    }
+    if (btnLaunchCorr) {
+      btnLaunchCorr.onclick = () => {
+        openComparisonStudio(Array.from(selectedCompareISINs), 'correlation');
+      };
+    }
+    if (btnLaunchPort) {
+      btnLaunchPort.onclick = () => {
+        openComparisonStudio(Array.from(selectedCompareISINs), 'portfolio');
       };
     }
   }
 
-  async function openComparisonStudio(isinList) {
+  async function openComparisonStudio(isinList, initialTab = 'graph') {
     if (!isinList || !isinList.length) return;
 
     const elModal = document.getElementById('etf-chart-modal');
@@ -3870,28 +4296,42 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     csState.timeRange = '3Y';
     csState.showBenchmark = false;
     csState.subIndicator = null;
-    csState.activeTab = 'graph';
+    csState.activeTab = initialTab;
 
     const tabGraph = document.getElementById('tab-btn-graph');
     const tabHeatmap = document.getElementById('tab-btn-heatmap');
-    if (tabGraph) tabGraph.classList.add('active');
+    const tabCorr = document.getElementById('tab-btn-correlation');
+    const tabPort = document.getElementById('tab-btn-portfolio');
+    if (tabGraph) tabGraph.classList.toggle('active', initialTab === 'graph');
     if (tabHeatmap) tabHeatmap.classList.remove('active');
+    if (tabCorr) {
+      tabCorr.style.display = 'inline-flex';
+      tabCorr.classList.toggle('active', initialTab === 'correlation');
+    }
+    if (tabPort) {
+      tabPort.style.display = 'inline-flex';
+      tabPort.classList.toggle('active', initialTab === 'portfolio');
+    }
 
     const mainContainer = document.getElementById('chart-container-main');
     const subContainer = document.getElementById('chart-container-sub');
     const heatContainer = document.getElementById('chart-heatmap-container');
+    const corrContainer = document.getElementById('chart-correlation-container');
+    const portContainer = document.getElementById('chart-portfolio-container');
     const liveLegend = document.getElementById('chart-live-legend');
     const chartToolbar = document.querySelector('.chart-studio-toolbar');
 
     if (heatContainer) heatContainer.style.display = 'none';
-    if (mainContainer) mainContainer.style.display = 'block';
+    if (mainContainer) mainContainer.style.display = initialTab === 'graph' ? 'block' : 'none';
     if (subContainer) subContainer.style.display = 'none';
-    if (liveLegend) liveLegend.style.display = 'flex';
-    if (chartToolbar) chartToolbar.style.display = 'flex';
+    if (corrContainer) corrContainer.style.display = initialTab === 'correlation' ? 'block' : 'none';
+    if (portContainer) portContainer.style.display = initialTab === 'portfolio' ? 'block' : 'none';
+    if (liveLegend) liveLegend.style.display = initialTab === 'graph' ? 'flex' : 'none';
+    if (chartToolbar) chartToolbar.style.display = initialTab === 'graph' ? 'flex' : 'none';
 
     document.getElementById('chart-modal-ticker').textContent = 'SAMMENLIGNING';
     document.getElementById('chart-modal-isin').textContent = `${isinList.length} FOND VALGT`;
-    document.getElementById('chart-modal-cat').textContent = 'Relativ Avkastning (Normalisert til 0%)';
+    document.getElementById('chart-modal-cat').textContent = 'Relativ Avkastning / Korrelasjon / Portefølje';
 
     const fundNames = isinList.map(isin => {
       const item = rawData.find(d => d.ISIN === isin);
@@ -3906,7 +4346,6 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     const elEmpty = document.getElementById('chart-empty-state');
     if (elEmpty) elEmpty.style.display = 'none';
 
-    const colorPalette = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'];
     const fetchPromises = isinList.map(async (isin) => {
       const item = rawData.find(d => d.ISIN === isin) || { ISIN: isin };
       let data = null;
@@ -3941,9 +4380,21 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
 
     csState.rawPriceData = validResults[0].data;
     csState.item = validResults[0].item;
+    compareLoadedData = validResults;
 
+    if (initialTab === 'correlation') {
+      renderCorrelationMatrix(validResults);
+    } else if (initialTab === 'portfolio') {
+      renderPortfolioStudio(validResults);
+    } else {
+      renderComparisonChart(validResults);
+    }
+  }
+
+  function renderComparisonChart(validResults) {
+    if (!validResults || !validResults.length) return;
     destroyCharts();
-
+    const mainContainer = document.getElementById('chart-container-main');
     if (!mainContainer || typeof LightweightCharts === 'undefined') return;
 
     csState.mainChart = LightweightCharts.createChart(mainContainer, {
@@ -3974,6 +4425,7 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     });
 
     csState.compareSeriesMap = {};
+    const colorPalette = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'];
 
     validResults.forEach((res, idx) => {
       const color = colorPalette[idx % colorPalette.length];
@@ -4028,6 +4480,1235 @@ Når brukeren ber om lavere risiko, alternativer eller diversifisering (f.eks. b
     });
 
     csState.mainChart.timeScale().fitContent();
+  }
+
+  // ==========================================================================
+  // Markedsbredde & Taktisk Regime Barometer
+  // ==========================================================================
+  function renderMarketBreadth() {
+    let totKnown = 0, totAbove = 0;
+    let eqKnown = 0, eqAbove = 0;
+    let bndKnown = 0, bndAbove = 0;
+    let commKnown = 0, commAbove = 0;
+
+    rawData.forEach(item => {
+      if (item.Above_SMA200 === undefined) return;
+      totKnown++;
+      if (item.Above_SMA200) totAbove++;
+
+      const cat = (item.Kategori_Morningstar || item.Nordnet_Kategori || '').toLowerCase();
+      if (cat.includes('equity') || cat.includes('aksj')) {
+        eqKnown++;
+        if (item.Above_SMA200) eqAbove++;
+      } else if (cat.includes('fixed income') || cat.includes('bond') || cat.includes('rent')) {
+        bndKnown++;
+        if (item.Above_SMA200) bndAbove++;
+      } else if (cat.includes('commodit') || cat.includes('råvar') || cat.includes('metal') || cat.includes('energy')) {
+        commKnown++;
+        if (item.Above_SMA200) commAbove++;
+      }
+    });
+
+    const calcPct = (num, den) => den > 0 ? Math.round((num / den) * 100) : null;
+    const totPct = calcPct(totAbove, totKnown);
+    const eqPct = calcPct(eqAbove, eqKnown);
+    const bndPct = calcPct(bndAbove, bndKnown);
+    const commPct = calcPct(commAbove, commKnown);
+
+    const elTotVal = document.getElementById('breadth-val-total');
+    const elTotBar = document.getElementById('breadth-bar-total');
+    const elRegime = document.getElementById('breadth-regime-label');
+
+    if (totPct !== null) {
+      if (elTotVal) elTotVal.textContent = `${totPct}% (${totAbove}/${totKnown})`;
+      if (elTotBar) elTotBar.style.width = `${totPct}%`;
+      if (elRegime) {
+        if (totPct >= 65) {
+          elRegime.innerHTML = '<span class="text-emerald font-bold">🟢 Bullish / Ekspansivt marked</span>';
+        } else if (totPct >= 45) {
+          elRegime.innerHTML = '<span class="text-amber font-bold">🟡 Nøytralt / Konsolidering</span>';
+        } else {
+          elRegime.innerHTML = '<span class="text-rose font-bold">🔴 Bearish / Korreksjonsregime</span>';
+        }
+      }
+    }
+
+    const setMeter = (valId, barId, pct, count, total) => {
+      const elV = document.getElementById(valId);
+      const elB = document.getElementById(barId);
+      if (pct !== null) {
+        if (elV) elV.textContent = `${pct}% (${count}/${total})`;
+        if (elB) elB.style.width = `${pct}%`;
+      }
+    };
+
+    setMeter('breadth-val-equity', 'breadth-bar-equity', eqPct, eqAbove, eqKnown);
+    setMeter('breadth-val-bonds', 'breadth-bar-bonds', bndPct, bndAbove, bndKnown);
+    setMeter('breadth-val-comm', 'breadth-bar-comm', commPct, commAbove, commKnown);
+  }
+
+  // ==========================================================================
+  // Siste Trendskifter & Signalendringer (Delta Modal)
+  // ==========================================================================
+  function renderDeltaCard(item, badgeText, badgeClass) {
+    const ticker = item.Kortnavn || item.ISIN;
+    const name = item.Navn_Morningstar || item.Navn_Fil || ticker;
+    const ret12 = (item['Avkastning_12M_%'] !== null && item['Avkastning_12M_%'] !== undefined && !isNaN(item['Avkastning_12M_%'])) ? `${parseFloat(item['Avkastning_12M_%']).toFixed(1)}%` : '—';
+    const pctAth = (item.Pct_ATH !== undefined && item.Pct_ATH !== null && !isNaN(item.Pct_ATH)) ? `${item.Pct_ATH > 0 ? '+' : ''}${parseFloat(item.Pct_ATH).toFixed(1)}%` : '—';
+    const retNum = parseFloat(ret12);
+    const retCls = !isNaN(retNum) ? (retNum >= 0 ? 'text-emerald font-bold' : 'text-rose font-bold') : '';
+
+    return `
+      <div class="delta-card" data-isin="${item.ISIN}">
+        <div class="delta-card-head">
+          <span class="delta-card-ticker">${ticker}</span>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="delta-card-title" title="${name}">${name}</div>
+        <div class="delta-card-stats">
+          <span>12M: <strong class="${retCls}">${ret12}</strong></span>
+          <span>Fra ATH: <strong style="color: #cbd5e1;">${pctAth}</strong></span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderDeltaModal() {
+    const listUptrend = document.getElementById('delta-uptrend-list');
+    const listNearAth = document.getElementById('delta-nearath-list');
+    const listDips = document.getElementById('delta-dips-list');
+
+    // 1. Sterk opptrend: Above_SMA200 && Above_SMA50
+    const uptrendItems = rawData
+      .filter(d => !isGearedOrDerivative(d) && d.Above_SMA200 === true && d.Above_SMA50 === true)
+      .sort((a, b) => (parseFloat(b['Avkastning_12M_%']) || -999) - (parseFloat(a['Avkastning_12M_%']) || -999))
+      .slice(0, 36);
+
+    // 2. Nær 52-ukers topp (<= 3% fra ATH)
+    const nearAthItems = rawData
+      .filter(d => !isGearedOrDerivative(d) && d.Pct_ATH !== undefined && d.Pct_ATH !== null && parseFloat(d.Pct_ATH) >= -3.0)
+      .sort((a, b) => (parseFloat(b.Pct_ATH) || -999) - (parseFloat(a.Pct_ATH) || -999))
+      .slice(0, 36);
+
+    // 3. Attraktive dips i opptrend: Over SMA 200, men falt -5% til -18% fra ATH
+    const dipItems = rawData
+      .filter(d => !isGearedOrDerivative(d) && d.Above_SMA200 === true && d.Pct_ATH !== undefined && d.Pct_ATH !== null && parseFloat(d.Pct_ATH) <= -5.0 && parseFloat(d.Pct_ATH) >= -18.0)
+      .sort((a, b) => (parseFloat(b['Sharpe_3Y'] || b['Sharpe_1Y']) || -999) - (parseFloat(a['Sharpe_3Y'] || a['Sharpe_1Y']) || -999))
+      .slice(0, 36);
+
+    if (listUptrend) {
+      listUptrend.innerHTML = uptrendItems.length
+        ? uptrendItems.map(item => renderDeltaCard(item, 'Golden Cross', 'badge-official')).join('')
+        : '<p class="text-muted" style="padding:1rem;">Ingen fond i denne kategorien.</p>';
+    }
+
+    if (listNearAth) {
+      listNearAth.innerHTML = nearAthItems.length
+        ? nearAthItems.map(item => renderDeltaCard(item, 'Nær All-Time High', 'badge-calc')).join('')
+        : '<p class="text-muted" style="padding:1rem;">Ingen fond i denne kategorien.</p>';
+    }
+
+    if (listDips) {
+      listDips.innerHTML = dipItems.length
+        ? dipItems.map(item => renderDeltaCard(item, 'Kjøpsmulighet (Dip)', 'badge-na')).join('')
+        : '<p class="text-muted" style="padding:1rem;">Ingen fond i denne kategorien.</p>';
+    }
+
+    // Lytter på kortene for å åpne teknisk analyse
+    document.querySelectorAll('.delta-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const isin = card.dataset.isin;
+        const item = rawData.find(d => d.ISIN === isin);
+        if (item) {
+          const m = document.getElementById('delta-modal');
+          if (m) m.style.display = 'none';
+          openChartStudio(item);
+        }
+      });
+    });
+  }
+
+  // ==========================================================================
+  // N x N Pearson Korrelasjonsmatrise
+  // ==========================================================================
+  function renderCorrelationMatrix(validResults) {
+    const container = document.getElementById('chart-correlation-container');
+    if (!container) return;
+    if (!validResults || validResults.length < 2) {
+      container.innerHTML = `
+        <div style="padding: 2.5rem; text-align: center; color: var(--text-muted);">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
+          <h3>Velg minst 2 fond for å beregne korrelasjonsmatrise</h3>
+          <p>Bruk sjekkboksene i tabellen og klikk på 'Korrelasjon' i dokken nederst.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const fundData = validResults.map(res => {
+      const ticker = res.item.Kortnavn || res.isin;
+      const name = res.item.Navn_Morningstar || res.item.Navn_Fil || ticker;
+      const dateMap = new Map();
+      if (res.data && Array.isArray(res.data)) {
+        res.data.forEach(d => {
+          const val = (d.value !== undefined && d.value !== null) ? d.value : d.close;
+          if (d.time && val !== undefined && val !== null && !isNaN(val)) {
+            dateMap.set(d.time, parseFloat(val));
+          }
+        });
+      }
+      return { isin: res.isin, ticker, name, dateMap, count: res.data ? res.data.length : 0 };
+    });
+
+    const N = fundData.length;
+    const matrix = [];
+    const highCorrelationWarnings = [];
+
+    for (let i = 0; i < N; i++) {
+      matrix[i] = [];
+      for (let j = 0; j < N; j++) {
+        if (i === j) {
+          matrix[i][j] = 1.00;
+        } else if (j < i) {
+          matrix[i][j] = matrix[j][i];
+        } else {
+          const f1 = fundData[i];
+          const f2 = fundData[j];
+          const commonDates = [];
+          for (let date of f1.dateMap.keys()) {
+            if (f2.dateMap.has(date)) {
+              commonDates.push(date);
+            }
+          }
+          commonDates.sort();
+
+          if (commonDates.length < 15) {
+            matrix[i][j] = null;
+          } else {
+            const r1 = [];
+            const r2 = [];
+            for (let k = 1; k < commonDates.length; k++) {
+              const p1Prev = f1.dateMap.get(commonDates[k - 1]);
+              const p1Curr = f1.dateMap.get(commonDates[k]);
+              const p2Prev = f2.dateMap.get(commonDates[k - 1]);
+              const p2Curr = f2.dateMap.get(commonDates[k]);
+              if (p1Prev > 0 && p2Prev > 0) {
+                r1.push((p1Curr - p1Prev) / p1Prev);
+                r2.push((p2Curr - p2Prev) / p2Prev);
+              }
+            }
+
+            if (r1.length < 15) {
+              matrix[i][j] = null;
+            } else {
+              const mean1 = r1.reduce((a, b) => a + b, 0) / r1.length;
+              const mean2 = r2.reduce((a, b) => a + b, 0) / r2.length;
+              let num = 0, den1 = 0, den2 = 0;
+              for (let k = 0; k < r1.length; k++) {
+                const diff1 = r1[k] - mean1;
+                const diff2 = r2[k] - mean2;
+                num += diff1 * diff2;
+                den1 += diff1 * diff1;
+                den2 += diff2 * diff2;
+              }
+              const denom = Math.sqrt(den1 * den2);
+              const r = denom > 0 ? (num / denom) : 0;
+              const clamped = Math.max(-1, Math.min(1, r));
+              matrix[i][j] = clamped;
+
+              if (clamped >= 0.85) {
+                highCorrelationWarnings.push({
+                  f1: f1.ticker,
+                  f2: f2.ticker,
+                  r: clamped.toFixed(2)
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function getCorrCellStyle(r, isDiag) {
+      if (isDiag) return 'background: rgba(255, 255, 255, 0.06); color: #94a3b8; font-weight: 700;';
+      if (r === null || isNaN(r)) return 'background: rgba(255, 255, 255, 0.02); color: #64748b;';
+      if (r >= 0.85) return 'background: rgba(244, 63, 94, 0.28); color: #fda4af; font-weight: 800;';
+      if (r >= 0.60) return 'background: rgba(245, 158, 11, 0.22); color: #fde68a; font-weight: 700;';
+      if (r >= 0.30) return 'background: rgba(56, 189, 248, 0.16); color: #bae6fd; font-weight: 600;';
+      if (r >= 0.00) return 'background: rgba(99, 102, 241, 0.16); color: #c7d2fe; font-weight: 600;';
+      return 'background: rgba(16, 185, 129, 0.28); color: #a7f3d0; font-weight: 800;';
+    }
+
+    const tableHtml = `
+      <div class="corr-table-wrap">
+        <table class="corr-table">
+          <thead>
+            <tr>
+              <th></th>
+              ${fundData.map(f => `<th title="${f.name}">${f.ticker}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${fundData.map((fRow, i) => `
+              <tr>
+                <th class="corr-row-header" title="${fRow.name}">
+                  <span style="color: #a5b4fc; font-weight: 700;">${fRow.ticker}</span>
+                  <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;">${fRow.name}</div>
+                </th>
+                ${fundData.map((fCol, j) => {
+                  const val = matrix[i][j];
+                  const isDiag = i === j;
+                  const strVal = val !== null && !isNaN(val) ? val.toFixed(2) : '—';
+                  const style = getCorrCellStyle(val, isDiag);
+                  return `<td class="corr-cell ${isDiag ? 'diagonal' : ''}" style="${style}" title="${fRow.ticker} vs. ${fCol.ticker}: ${strVal}">${strVal}</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="corr-scale-legend">
+        <span>Negativ (Sikring)</span>
+        <div class="corr-scale-bar"></div>
+        <span>Sterk (Overlapp)</span>
+      </div>
+    `;
+
+    let warningHtml = '';
+    if (highCorrelationWarnings.length > 0) {
+      warningHtml = `
+        <div class="corr-warning-box">
+          <span style="font-size: 1.1rem; line-height: 1;">⚠️</span>
+          <div>
+            <strong>Advarsel om porteføljeoverlapp:</strong>
+            ${highCorrelationWarnings.map(w => `
+              <div><strong>${w.f1}</strong> og <strong>${w.f2}</strong> har en korrelasjon på <strong>${w.r}</strong>. De beveger seg nesten identisk, noe som gir minimal risikospredning ved å eie begge samtidig.</div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      warningHtml = `
+        <div class="corr-warning-box" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25); color: #a7f3d0;">
+          <span style="font-size: 1.1rem; line-height: 1;">✅</span>
+          <div>
+            <strong>Utmerket diversifiseringspotensial:</strong>
+            Ingen av de valgte fondene har overdrevent høy samvariasjon (&ge; 0.85). Kurven har god spredning på tvers av aktivaklasser/sektorer.
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = `
+      <div style="background: rgba(15, 21, 35, 0.85); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1.25rem;">
+        <h4 class="corr-card-title">
+          <span>📊 N &times; N Pearson Korrelasjonsmatrise (Daglige Avkastninger)</span>
+        </h4>
+        <div class="corr-card-sub">
+          Beregnet på alle felles historiske handelsdager. Verdier nær +1.00 indikerer identisk kursutvikling, mens lave eller negative verdier gir reell porteføljediversifisering.
+        </div>
+        ${tableHtml}
+        ${warningHtml}
+      </div>
+    `;
+  }
+
+  // ==========================================================================
+  // Portefølje Studio (Vekting, Simulert NAV & Risikojustert Avkastning)
+  // ==========================================================================
+  let portfolioChartInstance = null;
+
+  function renderPortfolioStudio(validResults) {
+    const container = document.getElementById('chart-portfolio-container');
+    if (!container) return;
+    if (!validResults || validResults.length < 2) {
+      container.innerHTML = `
+        <div style="padding: 2.5rem; text-align: center; color: var(--text-muted);">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">💼</div>
+          <h3>Velg minst 2 fond for å simulere en vektet portefølje</h3>
+          <p>Bruk sjekkboksene i tabellen og klikk på 'Vektet Portefølje' i dokken nederst.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const currentISINs = validResults.map(r => r.isin);
+    const hasAll = currentISINs.every(isin => portfolioWeights[isin] !== undefined);
+    if (!hasAll || Object.keys(portfolioWeights).length !== validResults.length) {
+      const eq = Math.floor(100 / validResults.length);
+      portfolioWeights = {};
+      validResults.forEach((r, idx) => {
+        portfolioWeights[r.isin] = (idx === validResults.length - 1) ? (100 - eq * (validResults.length - 1)) : eq;
+      });
+    }
+
+    container.innerHTML = `
+      <div class="portfolio-grid-layout">
+        <!-- Left panel: Weights -->
+        <div class="portfolio-weights-panel">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h4 style="margin:0; font-size:0.92rem; font-weight:700;">Allokering & Vekting</h4>
+            <button id="btn-portfolio-equal-weight" class="btn btn-xs btn-outline" style="font-size:0.72rem;">1/N Lik vekting</button>
+          </div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin:0.3rem 0 0.85rem 0;">Juster vekting for hvert fond (0–100%). Samlet sum bør være 100%.</p>
+          
+          <div class="portfolio-weights-list" id="portfolio-weights-list">
+            ${validResults.map(r => {
+              const ticker = r.item.Kortnavn || r.isin;
+              const name = r.item.Navn_Morningstar || r.item.Navn_Fil || ticker;
+              const curW = portfolioWeights[r.isin] || 0;
+              return `
+                <div class="portfolio-weight-item" data-isin="${r.isin}">
+                  <div class="portfolio-weight-top">
+                    <span class="portfolio-item-name" title="${name}"><strong>${ticker}</strong> <span style="font-size:0.72rem; color:var(--text-muted); font-weight:normal;">${name}</span></span>
+                    <span class="portfolio-weight-val" id="port-w-val-${r.isin}">${curW}%</span>
+                  </div>
+                  <div class="portfolio-slider-row">
+                    <input type="range" class="portfolio-slider" data-isin="${r.isin}" min="0" max="100" step="1" value="${curW}">
+                    <input type="number" class="portfolio-num-input" data-isin="${r.isin}" min="0" max="100" step="1" value="${curW}">
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="portfolio-total-row">
+            <span>Total Allokering:</span>
+            <span id="portfolio-total-weight-badge" class="badge">100%</span>
+          </div>
+        </div>
+
+        <!-- Right panel: Performance metrics & synthetic NAV chart -->
+        <div class="portfolio-results-panel">
+          <div class="portfolio-kpi-strip">
+            <div class="portfolio-kpi-card">
+              <div class="lbl">Portefølje Årlig Avkastning</div>
+              <div class="val text-emerald" id="port-cagr">—%</div>
+            </div>
+            <div class="portfolio-kpi-card">
+              <div class="lbl">Portefølje Sharpe Ratio</div>
+              <div class="val text-indigo" id="port-sharpe">—</div>
+            </div>
+            <div class="portfolio-kpi-card">
+              <div class="lbl">Portefølje Volatilitet</div>
+              <div class="val text-amber" id="port-vol">—%</div>
+            </div>
+            <div class="portfolio-kpi-card">
+              <div class="lbl">Maks Drawdown</div>
+              <div class="val text-rose" id="port-maxdd">—%</div>
+            </div>
+          </div>
+          <div class="portfolio-chart-canvas-wrap">
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+              <span>📈 Syntetisk Portefølje-NAV (Normalisert til 100 ved felles start)</span>
+              <span id="port-chart-date-range" style="font-family:var(--font-mono); font-size:0.7rem; color:#a5b4fc;"></span>
+            </div>
+            <div id="portfolio-equity-chart" style="width: 100%; height: 260px;"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    setupPortfolioEventListeners(validResults);
+    calculateAndRenderPortfolio(validResults);
+  }
+
+  function setupPortfolioEventListeners(validResults) {
+    const list = document.getElementById('portfolio-weights-list');
+    if (!list) return;
+
+    const btnEq = document.getElementById('btn-portfolio-equal-weight');
+    if (btnEq) {
+      btnEq.onclick = () => {
+        const eq = Math.floor(100 / validResults.length);
+        validResults.forEach((r, idx) => {
+          portfolioWeights[r.isin] = (idx === validResults.length - 1) ? (100 - eq * (validResults.length - 1)) : eq;
+        });
+        updateWeightInputs(validResults);
+        calculateAndRenderPortfolio(validResults);
+      };
+    }
+
+    const sliders = list.querySelectorAll('.portfolio-slider');
+    const nums = list.querySelectorAll('.portfolio-num-input');
+
+    sliders.forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const isin = e.target.dataset.isin;
+        const val = parseInt(e.target.value, 10) || 0;
+        portfolioWeights[isin] = val;
+        const numInput = list.querySelector(`.portfolio-num-input[data-isin="${isin}"]`);
+        if (numInput) numInput.value = val;
+        const lblVal = document.getElementById(`port-w-val-${isin}`);
+        if (lblVal) lblVal.textContent = `${val}%`;
+        updateTotalWeightBadge();
+        calculateAndRenderPortfolio(validResults);
+      });
+    });
+
+    nums.forEach(num => {
+      num.addEventListener('change', (e) => {
+        const isin = e.target.dataset.isin;
+        let val = parseInt(e.target.value, 10) || 0;
+        if (val < 0) val = 0;
+        if (val > 100) val = 100;
+        portfolioWeights[isin] = val;
+        const sliderInput = list.querySelector(`.portfolio-slider[data-isin="${isin}"]`);
+        if (sliderInput) sliderInput.value = val;
+        const lblVal = document.getElementById(`port-w-val-${isin}`);
+        if (lblVal) lblVal.textContent = `${val}%`;
+        updateTotalWeightBadge();
+        calculateAndRenderPortfolio(validResults);
+      });
+    });
+
+    function updateWeightInputs(results) {
+      results.forEach(r => {
+        const val = portfolioWeights[r.isin] || 0;
+        const slider = list.querySelector(`.portfolio-slider[data-isin="${r.isin}"]`);
+        const num = list.querySelector(`.portfolio-num-input[data-isin="${r.isin}"]`);
+        const lbl = document.getElementById(`port-w-val-${r.isin}`);
+        if (slider) slider.value = val;
+        if (num) num.value = val;
+        if (lbl) lbl.textContent = `${val}%`;
+      });
+      updateTotalWeightBadge();
+    }
+
+    function updateTotalWeightBadge() {
+      const total = Object.values(portfolioWeights).reduce((a, b) => a + b, 0);
+      const badge = document.getElementById('portfolio-total-weight-badge');
+      if (badge) {
+        badge.textContent = `${total}%`;
+        if (total === 100) {
+          badge.className = 'badge badge-official';
+          badge.style.background = 'rgba(16, 185, 129, 0.2)';
+          badge.style.color = '#34d399';
+        } else {
+          badge.className = 'badge badge-calc';
+          badge.style.background = 'rgba(245, 158, 11, 0.2)';
+          badge.style.color = '#fde68a';
+        }
+      }
+    }
+    updateTotalWeightBadge();
+  }
+
+  function calculateAndRenderPortfolio(validResults) {
+    if (!validResults || !validResults.length) return;
+
+    // 1. Build date -> price map for each fund
+    const fundMaps = validResults.map(r => {
+      const map = new Map();
+      if (r.data && Array.isArray(r.data)) {
+        r.data.forEach(d => {
+          const val = (d.value !== undefined && d.value !== null) ? d.value : d.close;
+          if (d.time && val !== undefined && val !== null && !isNaN(val)) {
+            map.set(d.time, parseFloat(val));
+          }
+        });
+      }
+      return { isin: r.isin, map };
+    });
+
+    const activeFunds = validResults.filter(r => (portfolioWeights[r.isin] || 0) > 0);
+    const fundsToUse = activeFunds.length ? activeFunds : validResults;
+
+    // Find the latest start date among the funds to ensure all have historical data
+    let commonStartDate = null;
+    for (let f of fundsToUse) {
+      const fm = fundMaps.find(m => m.isin === f.isin);
+      if (!fm || fm.map.size === 0) continue;
+      const fundDates = Array.from(fm.map.keys()).sort();
+      const firstDate = fundDates[0];
+      if (!commonStartDate || firstDate > commonStartDate) {
+        commonStartDate = firstDate;
+      }
+    }
+
+    if (!commonStartDate) return;
+
+    // Gather all unique trading dates starting from commonStartDate
+    const dateSet = new Set();
+    for (let f of fundsToUse) {
+      const fm = fundMaps.find(m => m.isin === f.isin);
+      if (!fm) continue;
+      for (let d of fm.map.keys()) {
+        if (d >= commonStartDate) {
+          dateSet.add(d);
+        }
+      }
+    }
+    const commonDates = Array.from(dateSet).sort();
+    if (commonDates.length < 10) return;
+
+    // Forward fill prices for each fund across commonDates
+    const fundFilledPrices = new Map();
+    for (let f of fundsToUse) {
+      const fm = fundMaps.find(m => m.isin === f.isin);
+      const filled = new Map();
+      let lastPrice = null;
+      for (let date of commonDates) {
+        if (fm && fm.map.has(date)) {
+          lastPrice = fm.map.get(date);
+        }
+        if (lastPrice !== null) {
+          filled.set(date, lastPrice);
+        }
+      }
+      fundFilledPrices.set(f.isin, filled);
+    }
+
+    const firstDate = commonDates[0];
+    const lastDate = commonDates[commonDates.length - 1];
+
+    const basePrices = {};
+    fundsToUse.forEach(f => {
+      const filled = fundFilledPrices.get(f.isin);
+      basePrices[f.isin] = filled ? filled.get(firstDate) : null;
+    });
+
+    const rawSumWeights = fundsToUse.reduce((sum, f) => sum + (portfolioWeights[f.isin] || 0), 0) || 100;
+
+    const navSeries = [];
+    for (let date of commonDates) {
+      let nav = 0;
+      let hasAll = true;
+      for (let f of fundsToUse) {
+        const filled = fundFilledPrices.get(f.isin);
+        const p = filled ? filled.get(date) : null;
+        const p0 = basePrices[f.isin];
+        if (!p || !p0) {
+          hasAll = false;
+          break;
+        }
+        const w = (portfolioWeights[f.isin] || 0) / rawSumWeights;
+        const normP = (p / p0) * 100.0;
+        nav += w * normP;
+      }
+      if (hasAll) {
+        navSeries.push({ time: date, value: parseFloat(nav.toFixed(2)) });
+      }
+    }
+
+    if (navSeries.length < 10) return;
+
+    const V0 = navSeries[0].value;
+    const VT = navSeries[navSeries.length - 1].value;
+
+    const d0 = new Date(firstDate);
+    const dT = new Date(lastDate);
+    const years = Math.max(0.1, (dT - d0) / (1000 * 60 * 60 * 24 * 365.25));
+    const cagr = (Math.pow(VT / V0, 1 / years) - 1) * 100;
+
+    const dailyReturns = [];
+    let maxDD = 0;
+    let peak = V0;
+
+    for (let k = 1; k < navSeries.length; k++) {
+      const prev = navSeries[k - 1].value;
+      const curr = navSeries[k].value;
+      const r = (curr - prev) / prev;
+      dailyReturns.push(r);
+
+      if (curr > peak) peak = curr;
+      const dd = ((curr - peak) / peak) * 100;
+      if (dd < maxDD) maxDD = dd;
+    }
+
+    const meanR = dailyReturns.length ? (dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length) : 0;
+    const variance = dailyReturns.length ? (dailyReturns.reduce((a, b) => a + Math.pow(b - meanR, 2), 0) / (dailyReturns.length - 1)) : 0;
+    const dailyStd = Math.sqrt(variance);
+    const annVol = dailyStd * Math.sqrt(252) * 100;
+
+    const riskFreeRate = 2.5;
+    const sharpe = annVol > 0 ? ((cagr - riskFreeRate) / annVol) : 0;
+
+    const elCagr = document.getElementById('port-cagr');
+    const elSharpe = document.getElementById('port-sharpe');
+    const elVol = document.getElementById('port-vol');
+    const elMaxdd = document.getElementById('port-maxdd');
+    const elRange = document.getElementById('port-chart-date-range');
+
+    if (elCagr) {
+      elCagr.textContent = `${cagr >= 0 ? '+' : ''}${cagr.toFixed(2)}% p.a.`;
+      elCagr.className = `val ${cagr >= 0 ? 'text-emerald' : 'text-rose'}`;
+    }
+    if (elSharpe) {
+      elSharpe.textContent = sharpe.toFixed(2);
+      elSharpe.className = `val ${sharpe >= 1.0 ? 'text-indigo' : (sharpe < 0 ? 'text-rose' : 'text-white')}`;
+    }
+    if (elVol) {
+      elVol.textContent = `${annVol.toFixed(2)}%`;
+    }
+    if (elMaxdd) {
+      elMaxdd.textContent = `${maxDD.toFixed(2)}%`;
+      elMaxdd.className = 'val text-rose';
+    }
+    if (elRange) {
+      elRange.textContent = `${firstDate} til ${lastDate} (${commonDates.length} handelsdager, ${years.toFixed(1)} år)`;
+    }
+
+    drawPortfolioChart(navSeries);
+  }
+
+  function drawPortfolioChart(navSeries) {
+    const chartContainer = document.getElementById('portfolio-equity-chart');
+    if (!chartContainer || typeof LightweightCharts === 'undefined') return;
+
+    if (portfolioChartInstance) {
+      try {
+        portfolioChartInstance.remove();
+      } catch (e) {}
+      portfolioChartInstance = null;
+    }
+
+    chartContainer.innerHTML = '';
+    const containerW = chartContainer.clientWidth || 650;
+    const containerH = 260;
+
+    portfolioChartInstance = LightweightCharts.createChart(chartContainer, {
+      width: containerW,
+      height: containerH,
+      layout: {
+        background: { type: 'solid', color: '#090d16' },
+        textColor: '#94a3b8',
+        fontSize: 11,
+        fontFamily: "'JetBrains Mono', monospace"
+      },
+      grid: {
+        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.03)' }
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: { color: '#6366f1', width: 1, style: 3 },
+        horzLine: { color: '#6366f1', width: 1, style: 3 }
+      },
+      timeScale: {
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        timeVisible: true
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255, 255, 255, 0.08)'
+      }
+    });
+
+    const areaSeries = portfolioChartInstance.addSeries(LightweightCharts.AreaSeries, {
+      topColor: 'rgba(99, 102, 241, 0.45)',
+      bottomColor: 'rgba(99, 102, 241, 0.02)',
+      lineColor: '#818cf8',
+      lineWidth: 2,
+      priceFormat: { type: 'custom', formatter: p => p.toFixed(2) }
+    });
+
+    areaSeries.setData(navSeries);
+
+    areaSeries.createPriceLine({
+      price: 100.0,
+      color: 'rgba(255, 255, 255, 0.25)',
+      lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      title: 'Basis (100)'
+    });
+
+    const elDateRange = document.getElementById('port-chart-date-range');
+    const defaultRangeText = elDateRange ? elDateRange.textContent : '';
+
+    portfolioChartInstance.subscribeCrosshairMove(param => {
+      if (!param || !param.time || !param.seriesData) {
+        if (elDateRange && defaultRangeText) elDateRange.textContent = defaultRangeText;
+        return;
+      }
+      const val = param.seriesData.get(areaSeries);
+      const p = val && val.value !== undefined ? val.value : (val && val.close !== undefined ? val.close : null);
+      if (p !== null && elDateRange) {
+        const diff = p - 100;
+        elDateRange.innerHTML = `Dato: <strong style="color:#fff;">${param.time}</strong> | NAV: <strong style="color:#818cf8;">${p.toFixed(2)}</strong> (<span style="color:${diff >= 0 ? '#10b981' : '#f43f5e'}; font-weight:700;">${diff >= 0 ? '+' : ''}${diff.toFixed(2)}%</span>)`;
+      }
+    });
+
+    portfolioChartInstance.timeScale().fitContent();
+
+    // Trigger an immediate micro-resize in case container dimensions settled after DOM insertion
+    setTimeout(() => {
+      if (portfolioChartInstance && chartContainer) {
+        portfolioChartInstance.applyOptions({
+          width: chartContainer.clientWidth || containerW,
+          height: containerH
+        });
+        portfolioChartInstance.timeScale().fitContent();
+      }
+    }, 50);
+  }
+
+
+  // ==========================================================================
+  // Egen Portefølje (Legg inn egne beholdninger & analyser)
+  // ==========================================================================
+  let userPortfolioHoldings = []; // [{ isin, ticker, name, unit: 'shares' | 'amount', rawValue, computedValue, price }]
+  let userPortSelectedETF = null;
+  let userPortCurrentUnit = 'shares';
+
+  function initUserPortfolioSection() {
+    const elCard = document.getElementById('user-portfolio-card');
+    if (!elCard) return;
+
+    const searchInput = document.getElementById('user-port-search-input');
+    const searchResults = document.getElementById('user-port-search-results');
+    const btnClearSearch = document.getElementById('user-port-search-clear');
+    const elSelectedBadge = document.getElementById('user-port-selected-etf');
+    const elSelectedTicker = document.getElementById('user-port-selected-ticker');
+    const elSelectedName = document.getElementById('user-port-selected-name');
+    const elSelectedPrice = document.getElementById('user-port-selected-price');
+    const btnCancelSelection = document.getElementById('user-port-cancel-selection');
+    const btnUnitShares = document.getElementById('unit-btn-shares');
+    const btnUnitAmount = document.getElementById('unit-btn-amount');
+    const elValLabel = document.getElementById('user-port-val-label');
+    const qtyInput = document.getElementById('user-port-qty-input');
+    const btnAdd = document.getElementById('btn-user-port-add');
+    const btnClearAll = document.getElementById('btn-user-port-clear');
+    const btnAnalyze = document.getElementById('btn-user-port-analyze');
+
+    // 1. Last inn lagrede beholdninger fra localStorage
+    loadSavedUserPortfolio();
+
+    // 2. Søk i ETF-er med umiddelbar åpning ved klikk/fokus og søk fra 0-1 bokstav
+    let searchDebounceTimer = null;
+
+    function safeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+
+    if (searchInput) {
+      const openSearchDropdown = () => {
+        const q = searchInput.value.trim().toLowerCase();
+        performPortfolioSearch(q);
+      };
+
+      searchInput.addEventListener('focus', openSearchDropdown);
+      searchInput.addEventListener('click', openSearchDropdown);
+
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        if (btnClearSearch) btnClearSearch.style.display = query ? 'block' : 'none';
+
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+          performPortfolioSearch(query);
+        }, 70);
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (searchResults) searchResults.style.display = 'none';
+        }
+      });
+    }
+
+    if (btnClearSearch) {
+      btnClearSearch.addEventListener('click', () => {
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+        }
+        btnClearSearch.style.display = 'none';
+        performPortfolioSearch('');
+      });
+    }
+
+    // Klikk utenfor lukker dropdown
+    document.addEventListener('click', (e) => {
+      if (searchResults && searchInput) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+          searchResults.style.display = 'none';
+        }
+      }
+    });
+
+    function performPortfolioSearch(query) {
+      if (!searchResults || !Array.isArray(rawData) || !rawData.length) return;
+
+      let matches = [];
+      let isDefaultPopular = false;
+
+      if (!query) {
+        // Tomt søkefelt: vis de 15 største og mest populære ETF-ene etter AUM
+        isDefaultPopular = true;
+        matches = rawData
+          .filter(d => d && (d.Kortnavn || d.ISIN))
+          .slice()
+          .sort((a, b) => (b.AUM_Verdi || 0) - (a.AUM_Verdi || 0))
+          .slice(0, 15);
+      } else {
+        // Søk fra 1 bokstav og oppover:
+        const hits = [];
+        for (let i = 0; i < rawData.length; i++) {
+          const item = rawData[i];
+          if (!item) continue;
+          const ticker = (item.Kortnavn || '').toLowerCase();
+          const isin = (item.ISIN || '').toLowerCase();
+          const name = (item.Navn_Morningstar || item.Navn_Fil || '').toLowerCase();
+
+          if (ticker === query) {
+            hits.push({ item, score: 100 });
+          } else if (ticker.startsWith(query)) {
+            hits.push({ item, score: 85 });
+          } else if (isin.startsWith(query)) {
+            hits.push({ item, score: 75 });
+          } else if (ticker.includes(query)) {
+            hits.push({ item, score: 65 });
+          } else if (name.startsWith(query)) {
+            hits.push({ item, score: 55 });
+          } else if (name.includes(query) || isin.includes(query)) {
+            hits.push({ item, score: 40 });
+          }
+        }
+
+        // Sorter treff: høyest relevans-score først, deretter største fond (AUM)
+        hits.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (b.item.AUM_Verdi || 0) - (a.item.AUM_Verdi || 0);
+        });
+
+        matches = hits.slice(0, 16).map(h => h.item);
+      }
+
+      if (!matches.length) {
+        searchResults.innerHTML = '<div style="padding: 0.85rem 1rem; color: var(--text-muted); font-size: 0.82rem; text-align: center;">Ingen ETF-er funnet for "' + safeHtml(query) + '"</div>';
+        searchResults.style.display = 'block';
+        return;
+      }
+
+      const headerHtml = isDefaultPopular
+        ? `<div class="user-port-dd-header">💡 Populære & største ETF-er (klikk eller søk)</div>`
+        : `<div class="user-port-dd-header">🔍 Søketreff (${matches.length} fond)</div>`;
+
+      const itemsHtml = matches.map(m => {
+        const ticker = m.Kortnavn || m.ISIN;
+        const name = m.Navn_Morningstar || m.Navn_Fil || ticker;
+        const price = getETFPrice(m);
+        const priceStr = price ? `${price.toFixed(2)} ${m.Valuta_AUM || '€'}` : '—';
+        const kat = m.Kategori_Morningstar || m.Nordnet_Kategori || 'ETF';
+        return `
+          <div class="user-port-dropdown-item" data-isin="${m.ISIN}">
+            <div class="user-port-dd-left">
+              <span class="user-port-dd-ticker">${safeHtml(ticker)}</span>
+              <span class="user-port-dd-name" title="${safeHtml(name)}">${safeHtml(name)}</span>
+            </div>
+            <div class="user-port-dd-right">
+              <span class="user-port-dd-price">${priceStr}</span>
+              <span style="font-size: 0.68rem; color: var(--text-muted);">${safeHtml(kat)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      searchResults.innerHTML = headerHtml + itemsHtml;
+
+      searchResults.querySelectorAll('.user-port-dropdown-item').forEach(itemEl => {
+        itemEl.addEventListener('click', () => {
+          const isin = itemEl.dataset.isin;
+          const found = rawData.find(d => d.ISIN === isin);
+          if (found) {
+            selectEtfForUserPortfolio(found);
+          }
+        });
+      });
+
+      searchResults.style.display = 'block';
+    }
+
+    function selectEtfForUserPortfolio(item) {
+      userPortSelectedETF = item;
+      const ticker = item.Kortnavn || item.ISIN;
+      const name = item.Navn_Morningstar || item.Navn_Fil || ticker;
+      const price = getETFPrice(item);
+      const priceStr = price ? `Kurs: ${price.toFixed(2)} ${item.Valuta_AUM || '€'}` : 'Siste kurs ukjent';
+
+      if (elSelectedTicker) elSelectedTicker.textContent = ticker;
+      if (elSelectedName) elSelectedName.textContent = name.length > 35 ? name.slice(0, 32) + '...' : name;
+      if (elSelectedPrice) elSelectedPrice.textContent = priceStr;
+      if (elSelectedBadge) elSelectedBadge.style.display = 'flex';
+
+      if (searchInput) searchInput.style.display = 'none';
+      if (btnClearSearch) btnClearSearch.style.display = 'none';
+      if (searchResults) searchResults.style.display = 'none';
+
+      if (qtyInput) {
+        qtyInput.focus();
+        validateAddBtn();
+      }
+    }
+
+    if (btnCancelSelection) {
+      btnCancelSelection.addEventListener('click', () => {
+        userPortSelectedETF = null;
+        if (elSelectedBadge) elSelectedBadge.style.display = 'none';
+        if (searchInput) {
+          searchInput.style.display = 'block';
+          searchInput.value = '';
+          searchInput.focus();
+          performPortfolioSearch('');
+        }
+        validateAddBtn();
+      });
+    }
+
+    // 3. Enhetsvelger (Andeler vs Beløp)
+    if (btnUnitShares && btnUnitAmount) {
+      btnUnitShares.addEventListener('click', () => {
+        userPortCurrentUnit = 'shares';
+        btnUnitShares.classList.add('active');
+        btnUnitAmount.classList.remove('active');
+        if (elValLabel) elValLabel.textContent = 'Antall andeler (stk):';
+        if (qtyInput) qtyInput.placeholder = 'f.eks. 50';
+      });
+
+      btnUnitAmount.addEventListener('click', () => {
+        userPortCurrentUnit = 'amount';
+        btnUnitAmount.classList.add('active');
+        btnUnitShares.classList.remove('active');
+        if (elValLabel) elValLabel.textContent = 'Investert beløp:';
+        if (qtyInput) qtyInput.placeholder = 'f.eks. 50 000 kr';
+      });
+    }
+
+    // 4. Input validering
+    function validateAddBtn() {
+      const val = parseFloat(qtyInput ? qtyInput.value : 0);
+      if (btnAdd) {
+        btnAdd.disabled = !(userPortSelectedETF && !isNaN(val) && val > 0);
+      }
+    }
+
+    if (qtyInput) {
+      qtyInput.addEventListener('input', validateAddBtn);
+      qtyInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (btnAdd && !btnAdd.disabled) {
+            addHolding();
+          }
+        }
+      });
+    }
+
+    // 5. Legg til beholdning
+    function addHolding() {
+      if (!userPortSelectedETF || !qtyInput) return;
+      const rawVal = parseFloat(qtyInput.value);
+      if (isNaN(rawVal) || rawVal <= 0) return;
+
+      const price = getETFPrice(userPortSelectedETF) || 100;
+      const computedVal = userPortCurrentUnit === 'shares' ? (rawVal * price) : rawVal;
+
+      const existingIdx = userPortfolioHoldings.findIndex(h => h.isin === userPortSelectedETF.ISIN);
+      if (existingIdx >= 0) {
+        userPortfolioHoldings[existingIdx].rawValue = rawVal;
+        userPortfolioHoldings[existingIdx].unit = userPortCurrentUnit;
+        userPortfolioHoldings[existingIdx].price = price;
+        userPortfolioHoldings[existingIdx].computedValue = computedVal;
+      } else {
+        if (userPortfolioHoldings.length >= 10) {
+          alert('Du har nådd maksgrensen på 10 fond i denne porteføljesimuleringen.');
+          return;
+        }
+        userPortfolioHoldings.push({
+          isin: userPortSelectedETF.ISIN,
+          ticker: userPortSelectedETF.Kortnavn || userPortSelectedETF.ISIN,
+          name: userPortSelectedETF.Navn_Morningstar || userPortSelectedETF.Navn_Fil || userPortSelectedETF.ISIN,
+          unit: userPortCurrentUnit,
+          rawValue: rawVal,
+          price: price,
+          computedValue: computedVal
+        });
+      }
+
+      saveUserPortfolio();
+      renderUserPortfolioChips();
+
+      // Reset inntastingsfelt
+      qtyInput.value = '';
+      userPortSelectedETF = null;
+      if (elSelectedBadge) elSelectedBadge.style.display = 'none';
+      if (searchInput) {
+        searchInput.style.display = 'block';
+        searchInput.value = '';
+        searchInput.focus();
+      }
+      validateAddBtn();
+    }
+
+    if (btnAdd) {
+      btnAdd.addEventListener('click', addHolding);
+    }
+
+    // 6. Tøm alle
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', () => {
+        if (confirm('Er du sikker på at du vil tømme din lagrede portefølje?')) {
+          userPortfolioHoldings = [];
+          saveUserPortfolio();
+          renderUserPortfolioChips();
+        }
+      });
+    }
+
+    // 7. Analyser din portefølje (Åpner samme studio som fond valgt)
+    if (btnAnalyze) {
+      btnAnalyze.addEventListener('click', () => {
+        analyzeUserPortfolio();
+      });
+    }
+  }
+
+  function getETFPrice(item) {
+    if (!item) return null;
+    if (item.Last_Price) return item.Last_Price;
+    if (csState.manifest) {
+      const entry = csState.manifest[item.ISIN] || (item.Kortnavn && csState.manifest[item.Kortnavn]);
+      if (entry && entry.last_price) return entry.last_price;
+    }
+    return null;
+  }
+
+  function loadSavedUserPortfolio() {
+    try {
+      const saved = localStorage.getItem('etf_user_portfolio_holdings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          userPortfolioHoldings = parsed;
+          renderUserPortfolioChips();
+        }
+      }
+    } catch (e) {}
+  }
+
+  function saveUserPortfolio() {
+    try {
+      localStorage.setItem('etf_user_portfolio_holdings', JSON.stringify(userPortfolioHoldings));
+    } catch (e) {}
+  }
+
+  function updateUserPortfolioPrices() {
+    if (!userPortfolioHoldings || !userPortfolioHoldings.length) return;
+    let changed = false;
+    userPortfolioHoldings.forEach(h => {
+      const item = rawData.find(d => d.ISIN === h.isin);
+      if (item) {
+        const newPrice = getETFPrice(item);
+        if (newPrice && newPrice !== h.price) {
+          h.price = newPrice;
+          if (h.unit === 'shares') {
+            h.computedValue = h.rawValue * newPrice;
+          }
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      saveUserPortfolio();
+      renderUserPortfolioChips();
+    }
+  }
+
+  function renderUserPortfolioChips() {
+    const wrap = document.getElementById('user-port-holdings-container');
+    const grid = document.getElementById('user-port-chips-grid');
+    const lblCount = document.getElementById('user-port-holdings-count');
+    const lblTotal = document.getElementById('user-port-total-value');
+    const btnClear = document.getElementById('btn-user-port-clear');
+    const btnAnalyze = document.getElementById('btn-user-port-analyze');
+
+    if (!wrap || !grid) return;
+
+    if (!userPortfolioHoldings.length) {
+      wrap.style.display = 'none';
+      if (btnClear) btnClear.style.display = 'none';
+      if (btnAnalyze) {
+        btnAnalyze.disabled = true;
+        btnAnalyze.title = 'Legg til minst 2 fond for å starte porteføljeanalysen';
+      }
+      return;
+    }
+
+    wrap.style.display = 'block';
+    if (btnClear) btnClear.style.display = 'inline-flex';
+
+    const totalVal = userPortfolioHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+
+    grid.innerHTML = userPortfolioHoldings.map((h, idx) => {
+      const weight = Math.max(1, Math.round(((h.computedValue || 0) / totalVal) * 100));
+      const valStr = h.unit === 'shares'
+        ? `${h.rawValue} stk (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)`
+        : `${Math.round(h.rawValue).toLocaleString('no-NO')} kr`;
+
+      return `
+        <div class="user-port-chip" data-isin="${h.isin}">
+          <span class="user-port-chip-ticker">${h.ticker}</span>
+          <span class="user-port-chip-weight">${weight}%</span>
+          <span class="user-port-chip-val">${valStr}</span>
+          <button type="button" class="user-port-chip-remove" data-isin="${h.isin}" title="Fjern fra portefølje">&times;</button>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('.user-port-chip-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isin = btn.dataset.isin;
+        userPortfolioHoldings = userPortfolioHoldings.filter(h => h.isin !== isin);
+        saveUserPortfolio();
+        renderUserPortfolioChips();
+      });
+    });
+
+    if (lblCount) {
+      lblCount.textContent = `Dine beholdninger (${userPortfolioHoldings.length} fond valgt)`;
+    }
+    if (lblTotal) {
+      lblTotal.textContent = `Beregnet totalverdi: ${Math.round(totalVal).toLocaleString('no-NO')} kr (100%)`;
+    }
+
+    if (btnAnalyze) {
+      const canAnalyze = userPortfolioHoldings.length >= 2;
+      btnAnalyze.disabled = !canAnalyze;
+      btnAnalyze.title = canAnalyze ? 'Klikk for å åpne full institusjonell risiko- og avkastningsanalyse' : 'Legg til minst 2 fond for å starte analysen';
+    }
+  }
+
+  function analyzeUserPortfolio() {
+    if (userPortfolioHoldings.length < 2) {
+      alert('Legg til minst 2 fond i porteføljen din for å kunne beregne vektet risiko, Sharpe og korrelasjon.');
+      return;
+    }
+
+    const totalVal = userPortfolioHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+    const isinList = userPortfolioHoldings.map(h => h.isin);
+
+    portfolioWeights = {};
+    let assigned = 0;
+    userPortfolioHoldings.forEach((h, idx) => {
+      if (idx === userPortfolioHoldings.length - 1) {
+        portfolioWeights[h.isin] = Math.max(1, 100 - assigned);
+      } else {
+        const w = Math.round(((h.computedValue || 0) / totalVal) * 100);
+        portfolioWeights[h.isin] = w;
+        assigned += w;
+      }
+    });
+
+    // Synkroniser også dokken nederst så de samme fondene er valgt
+    selectedCompareISINs.clear();
+    isinList.forEach(isin => selectedCompareISINs.add(isin));
+    updateCompareDock();
+
+    // Åpne samme studio direkte på 'portfolio'-fanen med brukerens egne vekter
+    openComparisonStudio(isinList, 'portfolio');
   }
 
   // Start init when DOM is ready

@@ -104,6 +104,69 @@
   <!-- Main Container -->
   <main class="main-container">
 
+    <!-- Legg inn din portefølje seksjon -->
+    <section class="user-portfolio-card" id="user-portfolio-card">
+      <div class="user-port-header">
+        <div class="user-port-title-group">
+          <div class="user-port-tag">💼 Egen Portefølje</div>
+          <h3 class="user-port-title">Legg inn din portefølje</h3>
+          <span class="user-port-sub">Søk opp ETF-ene du eier, angi andeler (stk) eller investert beløp, og analyser samlet risiko, historisk avkastning og diversifisering.</span>
+        </div>
+        <div class="user-port-actions">
+          <button id="btn-user-port-clear" class="btn btn-sm btn-ghost" style="display: none;" title="Tøm alle valgte fond i din portefølje">🗑️ Tøm</button>
+          <button id="btn-user-port-analyze" class="btn btn-sm btn-primary btn-analyze-portfolio" disabled title="Legg til minst 2 fond for å starte porteføljeanalysen">
+            📊 Analyser din portefølje
+          </button>
+        </div>
+      </div>
+
+      <!-- Inntasting & Søkefelt -->
+      <div class="user-port-form-row">
+        <!-- Søk etter ETF -->
+        <div class="user-port-search-col">
+          <label class="user-port-label" for="user-port-search-input">Velg ETF fra markedet:</label>
+          <div class="user-port-search-wrap">
+            <input type="text" id="user-port-search-input" class="user-port-search-input" placeholder="🔍 Søk ticker, ISIN eller navn (f.eks. VWCE, SXR8, iShares)..." autocomplete="off">
+            <button id="user-port-search-clear" class="btn-input-clear" style="display: none;" type="button">&times;</button>
+            <div id="user-port-search-results" class="user-port-dropdown" style="display: none;"></div>
+          </div>
+          <div id="user-port-selected-etf" class="user-port-selected-badge" style="display: none;">
+            <span id="user-port-selected-ticker" class="font-bold text-indigo"></span>
+            <span id="user-port-selected-name" class="text-muted text-sm"></span>
+            <span id="user-port-selected-price" class="badge badge-official"></span>
+            <button id="user-port-cancel-selection" class="btn-cancel-select" type="button" title="Fjern valg">&times;</button>
+          </div>
+        </div>
+
+        <!-- Velg enhet: Andeler vs Beløp -->
+        <div class="user-port-unit-col">
+          <label class="user-port-label">Inntastingstype:</label>
+          <div class="user-port-unit-toggle">
+            <button type="button" class="unit-toggle-btn active" data-unit="shares" id="unit-btn-shares">Andeler (stk)</button>
+            <button type="button" class="unit-toggle-btn" data-unit="amount" id="unit-btn-amount">Beløp (kr / €)</button>
+          </div>
+        </div>
+
+        <!-- Verdi / Antall input -->
+        <div class="user-port-val-col">
+          <label class="user-port-label" id="user-port-val-label" for="user-port-qty-input">Antall andeler:</label>
+          <div class="user-port-input-group">
+            <input type="number" id="user-port-qty-input" class="user-port-num-input" placeholder="f.eks. 50" min="0.01" step="any">
+            <button type="button" id="btn-user-port-add" class="btn btn-secondary user-port-add-btn" disabled>+ Legg til</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Valgte fond i porteføljen (Liste / Chips) -->
+      <div id="user-port-holdings-container" class="user-port-holdings-wrap" style="display: none;">
+        <div class="user-port-holdings-header">
+          <span class="user-port-holdings-count" id="user-port-holdings-count">Dine beholdninger (0 fond)</span>
+          <span class="user-port-total-value font-bold text-indigo" id="user-port-total-value">Totalverdi: 0 kr</span>
+        </div>
+        <div class="user-port-chips-grid" id="user-port-chips-grid"></div>
+      </div>
+    </section>
+
     <!-- KPI Summary Cards -->
     <section class="kpi-grid">
       <div class="kpi-card" id="kpi-total">
@@ -138,6 +201,66 @@
       </div>
     </section>
 
+    <!-- Market Breadth & Macro Trend Barometer -->
+    <section class="market-breadth-card" id="market-breadth-card">
+      <div class="breadth-header">
+        <div class="breadth-title-group">
+          <span class="breadth-pulse-dot"></span>
+          <h3 class="breadth-title">Markedsbredde & Taktisk Regime</h3>
+          <span class="breadth-sub" id="breadth-summary-sub">Andel fond over 200 & 50 dagers glidende snitt (SMA)</span>
+        </div>
+        <div class="breadth-actions">
+          <button id="btn-breadth-filter-uptrend" class="btn btn-xs btn-outline" title="Filtrer tabellen til kun ETF-er i opptrend (over SMA 200)">🟢 Vis kun opptrend</button>
+          <button id="btn-open-delta-modal" class="btn btn-xs btn-ghost" title="Se hvilke fond som nylig har brutt over eller under SMA 200">⚡ Siste trendskifter</button>
+        </div>
+      </div>
+      <div class="breadth-metrics-row">
+        <div class="breadth-meter-item" id="breadth-meter-total">
+          <div class="breadth-meter-header">
+            <span class="breadth-meter-name">Totalt Marked (SMA 200)</span>
+            <span class="breadth-meter-pct" id="breadth-val-total">—%</span>
+          </div>
+          <div class="breadth-bar-track">
+            <div class="breadth-bar-fill fill-primary" id="breadth-bar-total" style="width: 0%;"></div>
+          </div>
+          <span class="breadth-meter-note" id="breadth-regime-label">Regime: Beregner...</span>
+        </div>
+
+        <div class="breadth-meter-item" id="breadth-meter-equity">
+          <div class="breadth-meter-header">
+            <span class="breadth-meter-name">Aksje-ETF-er (Equity)</span>
+            <span class="breadth-meter-pct text-emerald" id="breadth-val-equity">—%</span>
+          </div>
+          <div class="breadth-bar-track">
+            <div class="breadth-bar-fill fill-emerald" id="breadth-bar-equity" style="width: 0%;"></div>
+          </div>
+          <span class="breadth-meter-note" id="breadth-equity-sub">over SMA 200</span>
+        </div>
+
+        <div class="breadth-meter-item" id="breadth-meter-bonds">
+          <div class="breadth-meter-header">
+            <span class="breadth-meter-name">Rente-ETF-er (Fixed Income)</span>
+            <span class="breadth-meter-pct text-sky" id="breadth-val-bonds">—%</span>
+          </div>
+          <div class="breadth-bar-track">
+            <div class="breadth-bar-fill fill-sky" id="breadth-bar-bonds" style="width: 0%;"></div>
+          </div>
+          <span class="breadth-meter-note" id="breadth-bonds-sub">over SMA 200</span>
+        </div>
+
+        <div class="breadth-meter-item" id="breadth-meter-comm">
+          <div class="breadth-meter-header">
+            <span class="breadth-meter-name">Råvarer & Sektorer</span>
+            <span class="breadth-meter-pct text-amber" id="breadth-val-comm">—%</span>
+          </div>
+          <div class="breadth-bar-track">
+            <div class="breadth-bar-fill fill-amber" id="breadth-bar-comm" style="width: 0%;"></div>
+          </div>
+          <span class="breadth-meter-note" id="breadth-comm-sub">over SMA 200</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Search & Quick Filters Bar -->
     <section class="control-panel">
       
@@ -167,13 +290,23 @@
 
       <!-- Quick Preset Filter Tags -->
       <div class="quick-presets">
-        <span class="preset-label">Hurtigvalg:</span>
+        <span class="preset-label">Fundamentalt:</span>
         <button class="preset-pill" data-preset="sharpe_high">Sharpe 3Y &ge; 1.0</button>
         <button class="preset-pill" data-preset="return_15">Avkastning 12M &ge; 15%</button>
         <button class="preset-pill" data-preset="stddev_low">Standardavvik 3Y &le; 12%</button>
         <button class="preset-pill" data-preset="drawdown_safe">Max Drawdown &ge; -15%</button>
         <button class="preset-pill" data-preset="low_fee">Lav avgift &le; 0.20%</button>
         <button class="preset-pill" data-preset="large_aum">AUM &ge; 1 mrd</button>
+      </div>
+
+      <!-- Taktiske Trend- og Rotasjonsfiltre -->
+      <div class="quick-presets quick-presets-trend" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.07);">
+        <span class="preset-label">Trend & Rotasjon:</span>
+        <button class="preset-pill preset-pill-trend" data-preset="above_sma200">🟢 Over SMA 200 (Opptrend)</button>
+        <button class="preset-pill preset-pill-trend" data-preset="golden_cross">🟡 Golden Cross (SMA 50 &gt; 200)</button>
+        <button class="preset-pill preset-pill-trend" data-preset="near_ath">🚀 Nær ATH (&le; 3% fra topp)</button>
+        <button class="preset-pill preset-pill-trend" data-preset="dip_buyer">🎯 Dip i opptrend (&gt;200 SMA, -5% til -15% ATH)</button>
+        <button class="preset-pill preset-pill-shield active" id="btn-toggle-geared" data-action="toggle-geared" title="Klikk for å skjule eller vise gearede/inverse derivat-ETF-er (Bull, Bear, 2x)">🛡️ Skjuler gearede fond (46)</button>
       </div>
 
       <!-- Dynamic Multi-Filter Builder (3 valgfrie filtre) -->
@@ -333,6 +466,7 @@
           <p id="modal-benchmark-sub" class="modal-sub">Benchmark</p>
         </div>
         <div style="display: flex; gap: 0.6rem; align-items: center;">
+          <button id="modal-print-factsheet-btn" class="btn btn-sm btn-outline" style="border-color: rgba(255,255,255,0.2); font-weight: 500;" title="Skriv ut eller lagre 1-sides PDF faktaark for dette fondet">🖨️ Factsheet (PDF)</button>
           <button id="modal-open-chart-btn" class="btn btn-sm btn-secondary" style="border-color: #6366f1; color: #a5b4fc; font-weight: 600;" title="Åpne interaktiv kursgraf og teknisk analyse for dette fondet">📈 Åpne Kursgraf</button>
           <button id="modal-ask-ai-btn" class="btn btn-sm btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 600;" title="Få Gemini AI-analyse og alternativer for dette fondet">✨ Spør AI om fondet</button>
           <button id="modal-close-btn" class="modal-close-btn">&times;</button>
@@ -408,6 +542,8 @@
           <div class="chart-view-mode-tabs">
             <button class="chart-tab-pill active" id="tab-btn-graph">📈 Kurs & Analyse</button>
             <button class="chart-tab-pill" id="tab-btn-heatmap">🗓️ Månedsmatrise</button>
+            <button class="chart-tab-pill" id="tab-btn-correlation" style="display: none;">📊 Korrelasjonsmatrise</button>
+            <button class="chart-tab-pill" id="tab-btn-portfolio" style="display: none;">💼 Portefølje (Vekter)</button>
           </div>
           <button id="chart-btn-fullscreen" class="btn-icon-square" title="Utvid til fullskjerm / normal størrelse">⛶</button>
           <button id="chart-modal-close-btn" class="modal-close-btn">&times;</button>
@@ -514,6 +650,8 @@
         <div id="chart-container-main" class="chart-container-main"></div>
         <div id="chart-container-sub" class="chart-container-sub" style="display: none;"></div>
         <div id="chart-heatmap-container" class="chart-heatmap-container" style="display: none;"></div>
+        <div id="chart-correlation-container" class="chart-correlation-container" style="display: none;"></div>
+        <div id="chart-portfolio-container" class="chart-portfolio-container" style="display: none;"></div>
         
         <!-- Not Found / Loading Overlay -->
         <div id="chart-empty-state" class="chart-empty-state" style="display: none;">
@@ -588,7 +726,21 @@
       <div class="ai-header-actions">
         <button id="ai-settings-btn" class="ai-icon-btn" title="API Innstillinger">⚙️</button>
         <button id="ai-clear-btn" class="ai-icon-btn" title="Tøm samtale">🗑️</button>
+        <button id="ai-fullscreen-btn" class="ai-icon-btn" title="Utvid til fullskjerm">⛶</button>
         <button id="ai-close-btn" class="ai-icon-btn" title="Lukk chat">&times;</button>
+      </div>
+    </div>
+
+    <!-- Modell-velger: Rask & Smart vs Litt tregere & smartere -->
+    <div class="ai-model-switcher-bar">
+      <span class="ai-model-label">Modell:</span>
+      <div class="ai-model-btn-group">
+        <button type="button" class="ai-model-btn active" data-model="fast" id="btn-model-fast" title="Rask respons og umiddelbar analyse">
+          ⚡ Rask & smart
+        </button>
+        <button type="button" class="ai-model-btn" data-model="smart" id="btn-model-smart" title="Dypere resonnering og grundig analyse">
+          🧠 Litt tregere & smartere
+        </button>
       </div>
     </div>
 
@@ -604,6 +756,7 @@
 
     <!-- Quick Prompts Pills -->
     <div class="ai-quick-prompts" id="ai-quick-prompts">
+      <button class="ai-quick-btn" data-prompt="Analyser porteføljen min som jeg har lagt inn øverst på siden. Gi meg en grundig vurdering av sammensetningen, sektoreksponering, samlet risiko og eventuelle svakheter eller forbedringsforslag.">💼 Analyser min portefølje</button>
       <button class="ai-quick-btn" data-prompt="Jeg ser på dette fondet. Finnes det bedre alternativer når jeg ønsker lavere risiko og kanskje vil være i et litt annet marked, da jeg er overeksponert på teknologi?">🛡️ Mindre Tech / Lavere risiko</button>
       <button class="ai-quick-btn" data-prompt="Gi meg en analyse av fondet jeg har valgt basert på 1Y, 3Y og 5Y Sharpe, Beta og Maximum Drawdown.">📊 Analyser valgt fond</button>
       <button class="ai-quick-btn" data-prompt="Hvilke globale indeks-ETF-er i listen gir best risikojustert avkastning (Sharpe og Sortino) kombinert med lave avgifter?">🌍 Beste globale indeks</button>
@@ -616,8 +769,9 @@
         <div class="ai-msg-avatar">✨</div>
         <div class="ai-msg-content">
           <p>Din menneskehjerne er sløv store deler av døgnet, jeg er en ledende AI-modell som alltid er opplagt, så ikke nøl med å spørre meg. Ingen spørsmål er for dumme... joda, en haug med dumme spørsmål er korka, men jeg er instruert til å si like klisjeer for å virke trivelig 😂</p>
-          <p>Jeg har uansett stålkontroll på alle <strong>2 238 ETF-ene</strong> i databasen din. Klikk på et fond i tabellen eller still meg spørsmål som:</p>
+          <p>Jeg har uansett stålkontroll på alle <strong>2 238 ETF-ene</strong> i databasen din, og jeg har full oversikt over porteføljen du har lagt inn øverst på siden. Be meg gjerne vurdere samlet risiko og diversifisering for porteføljen din, klikk på et fond i tabellen, eller still meg spørsmål som:</p>
           <ul>
+            <li><em>«Vurder porteføljen min – er diversifiseringen god nok, og hvordan kan jeg redusere nedsiderisikoen?»</em></li>
             <li><em>«Jeg er overeksponert på teknologi – finnes det alternativer med lavere risiko i andre markeder?»</em></li>
             <li><em>«Hvilket fond har lavest historisk drawdown blant helse- eller verdi-ETF-er?»</em></li>
             <li><em>«Sammenlign risiko og tracking error for fondene jeg ser på nå.»</em></li>
@@ -640,12 +794,44 @@
     <div class="dock-container">
       <div class="dock-left">
         <span class="dock-badge" id="dock-count-badge">0</span>
-        <span class="dock-text">fond valgt for sammenligning:</span>
+        <span class="dock-text">fond valgt:</span>
         <div class="dock-chips" id="dock-chips"></div>
       </div>
       <div class="dock-right">
         <button id="btn-clear-compare" class="btn btn-sm btn-outline">Nullstill</button>
-        <button id="btn-launch-compare" class="btn btn-sm btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 600;">⚖️ Sammenlign i Graf Studio</button>
+        <button id="btn-launch-compare" class="btn btn-sm btn-secondary" title="Vis normalisert kursutvikling i graf">📈 Sammenlign Kurs</button>
+        <button id="btn-launch-correlation" class="btn btn-sm btn-secondary" style="border-color: #10b981; color: #a7f3d0;" title="N x N Korrelasjonsmatrise for valgte fond">📊 Korrelasjon</button>
+        <button id="btn-launch-portfolio" class="btn btn-sm btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 600;" title="Simuler samlet portefølje med vekting og risiko">💼 Vektet Portefølje</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Siste Trendskifter / Delta Modal -->
+  <div id="delta-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog delta-modal-dialog">
+      <div class="modal-header">
+        <div>
+          <div class="modal-tag">Taktisk Overvåkning</div>
+          <h3 class="modal-title">Siste Trendskifter & Signalendringer</h3>
+          <p class="modal-sub">Oversikt over ETF-er som er i opptrend (over SMA 200), har satt 52-ukers topper eller befinner seg i attraktive korreksjonsnivåer.</p>
+        </div>
+        <button id="delta-modal-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body delta-modal-body">
+        <div class="delta-tabs">
+          <button class="delta-tab-btn active" data-dtab="tab-delta-uptrend">🟢 Sterk Opptrend (Golden Cross)</button>
+          <button class="delta-tab-btn" data-dtab="tab-delta-nearath">🚀 Nær 52-Ukers Topp</button>
+          <button class="delta-tab-btn" data-dtab="tab-delta-dips">🎯 Attraktive Dips i Opptrend</button>
+        </div>
+        <div id="tab-delta-uptrend" class="delta-pane active">
+          <div class="delta-cards-grid" id="delta-uptrend-list"></div>
+        </div>
+        <div id="tab-delta-nearath" class="delta-pane" style="display: none;">
+          <div class="delta-cards-grid" id="delta-nearath-list"></div>
+        </div>
+        <div id="tab-delta-dips" class="delta-pane" style="display: none;">
+          <div class="delta-cards-grid" id="delta-dips-list"></div>
+        </div>
       </div>
     </div>
   </div>
