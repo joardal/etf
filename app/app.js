@@ -6172,8 +6172,8 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
         userPortfolioHoldings[existingIdx].price = price;
         userPortfolioHoldings[existingIdx].computedValue = computedVal;
       } else {
-        if (userPortfolioHoldings.length >= 15) {
-          alert('Du har nådd maksgrensen på 15 fond i denne porteføljesimuleringen.');
+        if (userPortfolioHoldings.length >= 30) {
+          alert('Du har nådd maksgrensen på 30 fond i denne porteføljen.');
           return;
         }
         userPortfolioHoldings.push({
