@@ -2135,23 +2135,28 @@
     const portHoldings = (activePort && activePort.holdings) ? activePort.holdings : (userPortfolioHoldings || []);
     if (portHoldings && portHoldings.length > 0) {
       const totalPortVal = portHoldings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+      const isPurePercent = portHoldings.every(h => h.unit === 'percent');
+      const sumPercent = portHoldings.reduce((sum, h) => sum + (h.rawValue || 0), 0);
+
       const portDetails = portHoldings.map(h => {
-        const w = Math.round(((h.computedValue || 0) / totalPortVal) * 100);
+        let weightPct = 0;
+        if (h.unit === 'percent') {
+          weightPct = h.rawValue;
+        } else {
+          weightPct = Math.round(((h.computedValue || 0) / totalPortVal) * 100);
+        }
         return {
           Ticker: h.ticker,
           ISIN: h.isin,
           Navn: h.name,
-          Andel_Prosent: `${w}%`,
-          Investering: h.unit === 'shares'
-            ? `${h.rawValue} andeler (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)`
-            : `${Math.round(h.rawValue).toLocaleString('no-NO')} kr`
+          Vekting_Prosent: `${weightPct}%`
         };
       });
 
       contextPrompt += `=== BRUKERENS AKTIVE PORTEFØLJE: "${activePort.name || 'Portefølje 1'}" (I Portefølje-Studio) ===\n`;
-      contextPrompt += `Total beregnet verdi: ${Math.round(totalPortVal).toLocaleString('no-NO')} kr\n`;
       contextPrompt += `Antall fond: ${portHoldings.length}\n`;
-      contextPrompt += `Fondssammensetning og vekting:\n` + JSON.stringify(portDetails, null, 2) + `\n`;
+      contextPrompt += `Samlet allokering: ${isPurePercent ? sumPercent : 100}%\n`;
+      contextPrompt += `Fondssammensetning og allokering (KUN vekting i % av totalen):\n` + JSON.stringify(portDetails, null, 2) + `\n`;
 
       if (activePort.criteria) {
         const c = activePort.criteria;
@@ -2253,6 +2258,13 @@ Du svarer alltid på profesjonelt, pedagogisk og klart norsk med et lite glimt i
 Ikke nevn hvilken spesifikk underliggende AI-modell du er hvis du blir spurt – du er rett og slett bare den overlegne og alltid opplagte AI-fondsrådgiveren i systemet.
 Du har full innsikt i brukerens faktiske portefølje (hvis lagt inn), markedsbredden og alle 2 238 ETF-ene i databasen.
 Bruk konkrete tall (Sharpe 1-5Y, Beta 1-5Y, Alpha 1-5Y, Max Drawdown 1-5Y, Sortino og årlige avgifter) for å underbygge resonnementene dine.
+
+KRITISK ALLOKERINGS- OG RISIKOREGEL:
+- Du skal UTELUKKENDE forholde deg til porteføljens allokering og sammensetning i PROSENT (%) av totalen.
+- All vurdering av risiko, konsentrasjon, sårbarhet, overvekter og undervekter skal vurderes ut fra innehavets prosentandel av total portefølje.
+- Når du gir råd om å øke et innehav, minke et innehav, ombalansere eller ta inn en ny ETF, skal dette ALLTID uttrykkes i prosentpoeng (% av totalen, f.eks. "Øk EUNL med +5 % til 35 %, og reduser tech-vekten med -5 %").
+- Du skal ALDRI nevne, beregne eller spekulere i nominelle kronebeløp eller valutabeløp – allokering gjøres 100 % i relative prosenter (% av portefølje).
+
 Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifisering, skal du henvise direkte til deres faktiske fond og foreslå konkrete UCITS ETF-er med ISIN og ticker for å forbedre risikojustert avkastning. Vær konsis og strukturer svaret med kulepunkter.`;
 
     const contents = [
@@ -5277,7 +5289,7 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
   let activePortfolioId = 'port_1';
   let userPortfolioHoldings = []; // Peker alltid på aktiv porteføljes beholdninger
   let userPortSelectedETF = null;
-  let userPortCurrentUnit = 'shares';
+  let userPortCurrentUnit = 'percent';
   let studioPortfolioChartInstance = null;
 
   function createDefaultPortfolio(id = 'port_1', name = 'Portefølje 1') {
@@ -5367,7 +5379,9 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
   function updateNavAndShortcutBadges() {
     const p = getActivePortfolio();
     const count = (p.holdings || []).length;
+    const isPurePercent = (p.holdings || []).every(h => h.unit === 'percent');
     const totalVal = (p.holdings || []).reduce((sum, h) => sum + (h.computedValue || 0), 0);
+    const sumPercent = (p.holdings || []).reduce((sum, h) => sum + (h.rawValue || 0), 0);
 
     const navBadge = document.getElementById('main-nav-port-count');
     if (navBadge) {
@@ -5384,7 +5398,13 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
         banner.style.display = 'flex';
         if (nameEl) nameEl.textContent = p.name;
         if (countEl) countEl.textContent = `${count} fond`;
-        if (valEl) valEl.textContent = `${Math.round(totalVal).toLocaleString('no-NO')} kr`;
+        if (valEl) {
+          if (isPurePercent) {
+            valEl.textContent = `${Math.round(sumPercent)}% allokert`;
+          } else {
+            valEl.textContent = `${Math.round(totalVal).toLocaleString('no-NO')} kr`;
+          }
+        }
       } else {
         banner.style.display = 'none';
       }
@@ -5603,13 +5623,19 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     }
 
     const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+    const isPurePercent = holdings.every(h => h.unit === 'percent');
+    const sumPercent = holdings.reduce((sum, h) => sum + (h.rawValue || 0), 0);
     const c = active.criteria || {};
     const riskLabel = c.risk === 'conservative' ? 'Defensiv / Kapitalbevaring' : (c.risk === 'aggressive' ? 'Offensiv / Maksimal vekst' : 'Balansert (Vekst & Beskyttelse)');
 
     let fundListStr = holdings.map(h => {
-      const w = Math.round(((h.computedValue || 0) / totalVal) * 100);
-      const valStr = h.unit === 'shares' ? `${h.rawValue} andeler (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)` : `${Math.round(h.rawValue).toLocaleString('no-NO')} kr`;
-      return `- ${h.ticker} (${h.isin}) — ${h.name}: ${w}% vekt (${valStr})`;
+      let weightPct = 0;
+      if (h.unit === 'percent') {
+        weightPct = h.rawValue;
+      } else {
+        weightPct = Math.round(((h.computedValue || 0) / totalVal) * 100);
+      }
+      return `- ${h.ticker} (${h.isin}) — ${h.name}: ${weightPct}% allokering av total portefølje`;
     }).join('\n');
 
     let reqList = [];
@@ -5625,8 +5651,9 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
 
     const prompt = `Gjennomfør en grundig og institusjonell porteføljerevisjon av min portefølje "${active.name}" opp mot mine definerte mandatkrav og risikoprofil.
 
-PORTEFØLJEN MIN:
-Beregnet totalverdi: ${Math.round(totalVal).toLocaleString('no-NO')} kr (${holdings.length} fond)
+PORTEFØLJEN MIN (ALLOKERING I PROSENT):
+Antall fond: ${holdings.length}
+Samlet allokering: ${isPurePercent ? sumPercent : 100}%
 ${fundListStr}
 
 MINE DEFINERTE KRAV & MANDAT:
@@ -5639,8 +5666,8 @@ Vurder om porteføljen bryter med noen av de oppgitte mandatreglene (sektor, geo
 ### 2. Svakheter, konsentrasjonsrisiko og nedsidesårbarhet
 Hva er de største sårbarhetene ved denne sammensetningen i et stresset marked?
 
-### 3. Konkrete justeringer og alternative UCITS ETF-er
-Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spesifikke UCITS ETF-er med ISIN og ticker som oppfyller kravene mine.`;
+### 3. Konkrete allokeringsjusteringer og alternative UCITS ETF-er
+Gi konkrete anbefalinger for justering av vekting i prosentpoeng (% av totalen, f.eks. hvilke fond som bør reduseres eller økes med X %) og foreslå spesifikke UCITS ETF-er med ISIN og ticker som oppfyller kravene mine. Hold all argumentasjon utelukkende i prosentfordeling (% av total portefølje), uten å nevne kronebeløp.`;
 
     if (typeof openAiChat === 'function') openAiChat();
     if (typeof sendAiMessage === 'function') sendAiMessage(prompt);
@@ -5661,7 +5688,7 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
 
     if (!holdings.length) {
       if (section) section.style.display = 'none';
-      if (elVal) elVal.textContent = '0 kr';
+      if (elVal) elVal.textContent = '0%';
       if (elCountSub) elCountSub.textContent = '0 fond';
       return;
     }
@@ -5669,8 +5696,19 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
     if (section) section.style.display = 'block';
 
     const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
-    if (elVal) elVal.textContent = `${Math.round(totalVal).toLocaleString('no-NO')} kr`;
-    if (elCountSub) elCountSub.textContent = `${holdings.length} fond valgt (100%)`;
+    const isPurePercent = holdings.every(h => h.unit === 'percent');
+    const lblVal = document.getElementById('studio-port-val-label');
+    if (lblVal) lblVal.textContent = isPurePercent ? 'Samlet Allokering' : 'Totalverdi';
+
+    if (elVal) {
+      if (isPurePercent) {
+        const sumP = holdings.reduce((sum, h) => sum + (h.rawValue || 0), 0);
+        elVal.textContent = `${sumP}%`;
+      } else {
+        elVal.textContent = `${Math.round(totalVal).toLocaleString('no-NO')} kr`;
+      }
+    }
+    if (elCountSub) elCountSub.textContent = `${holdings.length} fond registrert (${isPurePercent ? '100% allokert' : '100%'})`;
 
     // Beregn vektet statistikk
     let weightedFee = 0;
@@ -5914,6 +5952,7 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
     const elSelectedName = document.getElementById('user-port-selected-name');
     const elSelectedPrice = document.getElementById('user-port-selected-price');
     const btnCancelSelection = document.getElementById('user-port-cancel-selection');
+    const btnUnitPercent = document.getElementById('unit-btn-percent');
     const btnUnitShares = document.getElementById('unit-btn-shares');
     const btnUnitAmount = document.getElementById('unit-btn-amount');
     const elValLabel = document.getElementById('user-port-val-label');
@@ -6117,22 +6156,49 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
       });
     }
 
-    // 3. Enhetsvelger (Andeler vs Beløp)
-    if (btnUnitShares && btnUnitAmount) {
+    // 3. Enhetsvelger (Vekting i % vs Andeler vs Beløp)
+    if (btnUnitPercent) {
+      btnUnitPercent.addEventListener('click', () => {
+        userPortCurrentUnit = 'percent';
+        btnUnitPercent.classList.add('active');
+        if (btnUnitShares) btnUnitShares.classList.remove('active');
+        if (btnUnitAmount) btnUnitAmount.classList.remove('active');
+        if (elValLabel) elValLabel.textContent = 'Porteføljeandel (%):';
+        if (qtyInput) {
+          qtyInput.placeholder = 'f.eks. 25%';
+          qtyInput.min = '0.1';
+          qtyInput.max = '100';
+        }
+      });
+    }
+
+    if (btnUnitShares) {
       btnUnitShares.addEventListener('click', () => {
         userPortCurrentUnit = 'shares';
         btnUnitShares.classList.add('active');
-        btnUnitAmount.classList.remove('active');
+        if (btnUnitPercent) btnUnitPercent.classList.remove('active');
+        if (btnUnitAmount) btnUnitAmount.classList.remove('active');
         if (elValLabel) elValLabel.textContent = 'Antall andeler (stk):';
-        if (qtyInput) qtyInput.placeholder = 'f.eks. 50';
+        if (qtyInput) {
+          qtyInput.placeholder = 'f.eks. 50';
+          qtyInput.min = '0.01';
+          qtyInput.removeAttribute('max');
+        }
       });
+    }
 
+    if (btnUnitAmount) {
       btnUnitAmount.addEventListener('click', () => {
         userPortCurrentUnit = 'amount';
         btnUnitAmount.classList.add('active');
-        btnUnitShares.classList.remove('active');
+        if (btnUnitPercent) btnUnitPercent.classList.remove('active');
+        if (btnUnitShares) btnUnitShares.classList.remove('active');
         if (elValLabel) elValLabel.textContent = 'Investert beløp:';
-        if (qtyInput) qtyInput.placeholder = 'f.eks. 50 000 kr';
+        if (qtyInput) {
+          qtyInput.placeholder = 'f.eks. 50 000 kr';
+          qtyInput.min = '1';
+          qtyInput.removeAttribute('max');
+        }
       });
     }
 
@@ -6163,7 +6229,14 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
       if (isNaN(rawVal) || rawVal <= 0) return;
 
       const price = getETFPrice(userPortSelectedETF) || 100;
-      const computedVal = userPortCurrentUnit === 'shares' ? (rawVal * price) : rawVal;
+      let computedVal = rawVal;
+      if (userPortCurrentUnit === 'shares') {
+        computedVal = rawVal * price;
+      } else if (userPortCurrentUnit === 'percent') {
+        computedVal = rawVal;
+      } else {
+        computedVal = rawVal;
+      }
 
       const existingIdx = userPortfolioHoldings.findIndex(h => h.isin === userPortSelectedETF.ISIN);
       if (existingIdx >= 0) {
@@ -6253,8 +6326,8 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
             h.price = newPrice;
             if (h.unit === 'shares') {
               h.computedValue = h.rawValue * newPrice;
+              changed = true;
             }
-            changed = true;
           }
         }
       });
@@ -6293,18 +6366,31 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
     wrap.style.display = 'block';
     if (btnClear) btnClear.style.display = 'inline-flex';
 
+    const isPurePercent = holdings.every(h => h.unit === 'percent');
     const totalVal = holdings.reduce((sum, h) => sum + (h.computedValue || 0), 0) || 1;
+    const sumPercent = holdings.reduce((sum, h) => sum + (h.rawValue || 0), 0);
 
     grid.innerHTML = holdings.map((h, idx) => {
-      const weight = Math.max(1, Math.round(((h.computedValue || 0) / totalVal) * 100));
-      const valStr = h.unit === 'shares'
-        ? `${h.rawValue} stk (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)`
-        : `${Math.round(h.rawValue).toLocaleString('no-NO')} kr`;
+      let weightText = '';
+      let valStr = '';
+
+      if (h.unit === 'percent') {
+        weightText = `${h.rawValue}%`;
+        valStr = `Vekting: ${h.rawValue}%`;
+      } else if (h.unit === 'shares') {
+        const weight = Math.max(1, Math.round(((h.computedValue || 0) / totalVal) * 100));
+        weightText = `${weight}%`;
+        valStr = `${h.rawValue} stk (${Math.round(h.computedValue).toLocaleString('no-NO')} kr)`;
+      } else {
+        const weight = Math.max(1, Math.round(((h.computedValue || 0) / totalVal) * 100));
+        weightText = `${weight}%`;
+        valStr = `${Math.round(h.rawValue).toLocaleString('no-NO')} kr`;
+      }
 
       return `
         <div class="user-port-chip" data-isin="${h.isin}">
           <span class="user-port-chip-ticker">${h.ticker}</span>
-          <span class="user-port-chip-weight">${weight}%</span>
+          <span class="user-port-chip-weight font-bold text-indigo">${weightText}</span>
           <span class="user-port-chip-val">${valStr}</span>
           <button type="button" class="user-port-chip-remove" data-isin="${h.isin}" title="Fjern fra portefølje">&times;</button>
         </div>
@@ -6328,7 +6414,18 @@ Gi konkrete anbefalinger for vekting (hva bør reduseres/økes) og foreslå spes
       lblCount.textContent = `Dine beholdninger (${holdings.length} fond valgt)`;
     }
     if (lblTotal) {
-      lblTotal.textContent = `Beregnet totalverdi: ${Math.round(totalVal).toLocaleString('no-NO')} kr (100%)`;
+      if (isPurePercent) {
+        const diff = Math.round((100 - sumPercent) * 10) / 10;
+        if (Math.abs(diff) < 0.05) {
+          lblTotal.innerHTML = `<span class="badge badge-emerald" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; font-weight: 700;">✓ 100% allokert</span>`;
+        } else if (diff > 0) {
+          lblTotal.innerHTML = `<span class="badge badge-warning" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; font-weight: 700;">${sumPercent}% allokert (${diff}% ledig)</span>`;
+        } else {
+          lblTotal.innerHTML = `<span class="badge badge-rose" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; font-weight: 700;">⚠ Overallokert: ${sumPercent}% (>100%)</span>`;
+        }
+      } else {
+        lblTotal.textContent = `Beregnet totalverdi: ${Math.round(totalVal).toLocaleString('no-NO')} kr (100%)`;
+      }
     }
 
     if (btnAnalyze) {

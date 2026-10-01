@@ -463,20 +463,21 @@
           </div>
         </div>
 
-        <!-- Velg enhet: Andeler vs Beløp -->
+        <!-- Velg enhet: Vekting i % vs Andeler vs Beløp -->
         <div class="user-port-unit-col">
           <label class="user-port-label">Inntastingstype:</label>
           <div class="user-port-unit-toggle">
-            <button type="button" class="unit-toggle-btn active" data-unit="shares" id="unit-btn-shares">Andeler (stk)</button>
+            <button type="button" class="unit-toggle-btn active" data-unit="percent" id="unit-btn-percent">Vekting (%)</button>
+            <button type="button" class="unit-toggle-btn" data-unit="shares" id="unit-btn-shares">Andeler (stk)</button>
             <button type="button" class="unit-toggle-btn" data-unit="amount" id="unit-btn-amount">Beløp (kr / €)</button>
           </div>
         </div>
 
         <!-- Verdi / Antall input -->
         <div class="user-port-val-col">
-          <label class="user-port-label" id="user-port-val-label" for="user-port-qty-input">Antall andeler:</label>
+          <label class="user-port-label" id="user-port-val-label" for="user-port-qty-input">Porteføljeandel (%):</label>
           <div class="user-port-input-group">
-            <input type="number" id="user-port-qty-input" class="user-port-num-input" placeholder="f.eks. 50" min="0.01" step="any">
+            <input type="number" id="user-port-qty-input" class="user-port-num-input" placeholder="f.eks. 25%" min="0.1" max="100" step="any">
             <button type="button" id="btn-user-port-add" class="btn btn-secondary user-port-add-btn" disabled>+ Legg til</button>
           </div>
         </div>
@@ -487,7 +488,7 @@
         <div class="user-port-holdings-header">
           <div>
             <span class="user-port-holdings-count" id="user-port-holdings-count">Dine beholdninger (0 fond)</span>
-            <span class="user-port-total-value font-bold text-indigo" id="user-port-total-value" style="margin-left: 0.75rem;">Totalverdi: 0 kr</span>
+            <span class="user-port-total-value font-bold text-indigo" id="user-port-total-value" style="margin-left: 0.75rem;">Samlet allokering: 0%</span>
           </div>
           <div class="port-holdings-actions">
             <button id="btn-user-port-clear" class="btn btn-xs btn-ghost" style="display: none;" title="Tøm alle fond i denne porteføljen">🗑️ Tøm beholdninger</button>
@@ -511,8 +512,8 @@
       <!-- Portefølje KPI-kort -->
       <div class="port-kpi-grid">
         <div class="port-kpi-card">
-          <div class="port-kpi-label">Totalverdi</div>
-          <div class="port-kpi-value text-indigo" id="studio-port-val">0 kr</div>
+          <div class="port-kpi-label" id="studio-port-val-label">Samlet Allokering</div>
+          <div class="port-kpi-value text-indigo" id="studio-port-val">0%</div>
           <div class="port-kpi-sub" id="studio-port-count-sub">0 fond</div>
         </div>
         <div class="port-kpi-card">
