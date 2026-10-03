@@ -2467,9 +2467,53 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
   // ==========================================================================
   // Interaktiv Analyse-graf & Scatter Plot (Risk/Return, Sortino, Drawdown)
   // ==========================================================================
-  let currentChartMode = 'risk_return'; // 'risk_return', 'sortino_sharpe', 'sortino_drawdown'
+  let currentChartMode = 'risk_return'; // 2D-sammenligninger og risk_cube
   let isChartsPanelOpen = false;
   let chartPoints = [];
+  let chart3DView = { ...window.Analytics3D.DEFAULT_VIEW };
+  let chart3DDrag = null;
+  let chart3DWasDragged = false;
+  const MIN_3Y_TRADING_DAYS = 756;
+  const chartGuides = {
+    risk_return: {
+      icon: '↗', title: 'Avkastning mot svingninger',
+      text: 'Hvert punkt er et fond. Mot høyre øker volatiliteten; oppover øker annualisert avkastning. Øvre venstre del viser høy avkastning med lavere svingninger relativt til fondene i filteret. Sammenlign helst fond i samme kategori. Kun fond med minst 756 handelsdager vises.'
+    },
+    sortino_sharpe: {
+      icon: '◎', title: 'To mål på risikojustert avkastning',
+      text: 'Mot høyre øker Sharpe (3 år); oppover øker Sortino (hele tilgjengelige historikken). Se etter fond som ligger høyt på begge mål. Periodene er ulike, så forholdet mellom de to tallene er ikke et signal i seg selv. Kun fond med minst 756 handelsdager vises.'
+    },
+    sortino_drawdown: {
+      icon: '⌁', title: 'Nedsiderisiko og største fall',
+      text: 'Mot høyre nærmer 3-års maksimalt kursfall seg null; oppover øker Sortino (hele tilgjengelige historikken). Øvre høyre del kombinerer et mindre historisk fall med høy risikojustert avkastning. Periodene er ulike, så bruk grafen som en første sortering.'
+    },
+    risk_cube: {
+      icon: '◇', title: 'Tre mål i samme 3-årsperiode',
+      text: 'Hvert punkt er et fond. Volatilitet og største fall øker langs gulvaksene; avkastning øker oppover. Se etter punkter høyt oppe og nær null på begge risikoaksene. Den grønne markøren viser gunstig retning, ikke et bestemt fond. Dra for å rotere, rull for å zoome og hold over et punkt for tallene. Ytterpunkter vises med lys ring ved aksens kant. Sammenlign helst samme fondskategori.'
+    }
+  };
+
+  function chartNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function hasFullThreeYears(item) {
+    const days = chartNumber(item.Beregnet_Antall_Dager);
+    return days !== null && days >= MIN_3Y_TRADING_DAYS;
+  }
+
+  function updateChartGuide() {
+    const guide = chartGuides[currentChartMode];
+    if (!guide) return;
+    document.getElementById('chart-reading-icon').textContent = guide.icon;
+    document.getElementById('chart-reading-title').textContent = guide.title;
+    document.getElementById('chart-reading-text').textContent = guide.text;
+    document.getElementById('chart-reading-guide').classList.toggle('is-3d', currentChartMode === 'risk_cube');
+    document.getElementById('chart-canvas-container').classList.toggle('is-3d', currentChartMode === 'risk_cube');
+    document.getElementById('chart-3d-controls').style.display = currentChartMode === 'risk_cube' ? 'flex' : 'none';
+  }
 
   function initAnalyticsCharts() {
     const elBtnToggle = document.getElementById('btn-toggle-charts');
@@ -2479,11 +2523,24 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     const canvas = document.getElementById('analytics-canvas');
     const tooltip = document.getElementById('chart-tooltip');
     const btnFullscreen = document.getElementById('btn-chart-fullscreen');
+    const btn3DReset = document.getElementById('chart-3d-reset');
+    const chartsPanelParent = elChartsPanel ? elChartsPanel.parentNode : null;
+    const chartsPanelNextSibling = elChartsPanel ? elChartsPanel.nextSibling : null;
+
+    updateChartGuide();
+    if (btn3DReset) {
+      btn3DReset.addEventListener('click', () => {
+        chart3DView = { ...window.Analytics3D.DEFAULT_VIEW };
+        renderAnalyticsChart();
+      });
+    }
 
     function toggleChartFullscreen(forceState) {
       if (!elChartsPanel) return;
       const isFs = typeof forceState === 'boolean' ? forceState : !elChartsPanel.classList.contains('charts-fullscreen-mode');
       if (isFs) {
+        // En transformert forelder bryter fixed-posisjonering; legg panelet direkte i body.
+        document.body.appendChild(elChartsPanel);
         elChartsPanel.classList.add('charts-fullscreen-mode');
         if (btnFullscreen) {
           btnFullscreen.classList.add('active');
@@ -2491,6 +2548,7 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
         }
       } else {
         elChartsPanel.classList.remove('charts-fullscreen-mode');
+        if (chartsPanelParent) chartsPanelParent.insertBefore(elChartsPanel, chartsPanelNextSibling);
         if (btnFullscreen) {
           btnFullscreen.classList.remove('active');
           btnFullscreen.innerHTML = '<span class="fs-icon">⛶</span> <span class="fs-text">Fullskjerm</span>';
@@ -2541,6 +2599,8 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
         modeBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentChartMode = btn.dataset.chart;
+        if (tooltip) tooltip.style.display = 'none';
+        updateChartGuide();
         renderAnalyticsChart();
       });
     });
@@ -2552,15 +2612,16 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     });
 
     if (canvas && tooltip) {
-      canvas.addEventListener('mousemove', (e) => {
-        if (!chartPoints.length) return;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
+      function hitTestChart(mouseX, mouseY) {
+        if (currentChartMode === 'risk_cube') {
+          // Punkter nær kamera er tegnet sist og skal vinne når flere overlapper.
+          for (let i = chartPoints.length - 1; i >= 0; i--) {
+            const p = chartPoints[i];
+            if (Math.hypot(p.px - mouseX, p.py - mouseY) < 7) return p;
+          }
+        }
         let closest = null;
         let minDist = 14;
-
         chartPoints.forEach(p => {
           const dist = Math.hypot(p.px - mouseX, p.py - mouseY);
           if (dist < minDist) {
@@ -2568,6 +2629,17 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
             closest = p;
           }
         });
+        return closest;
+      }
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (chart3DDrag) return;
+        if (!chartPoints.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const closest = hitTestChart(mouseX, mouseY);
 
         if (closest) {
           canvas.style.cursor = 'pointer';
@@ -2603,12 +2675,17 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
             yLabel = 'Avkastning 3Y';
             yFmt = `${closest.y >= 0 ? '+' : ''}${closest.y.toFixed(2)}%`;
           } else if (currentChartMode === 'sortino_sharpe') {
-            xLabel = 'Sharpe Ratio';
-            yLabel = 'Sortino Ratio';
+            xLabel = 'Sharpe 3Y';
+            yLabel = 'Sortino (hele historikken)';
           } else if (currentChartMode === 'sortino_drawdown') {
             xLabel = 'Max Drawdown 3Y';
             xFmt = `${closest.x.toFixed(2)}%`;
-            yLabel = 'Sortino Ratio';
+            yLabel = 'Sortino (hele historikken)';
+          } else if (currentChartMode === 'risk_cube') {
+            xLabel = 'Volatilitet 3Y';
+            xFmt = `${closest.x.toFixed(2)}%`;
+            yLabel = 'Største fall 3Y';
+            yFmt = `${closest.y.toFixed(2)}%`;
           }
 
           tooltip.innerHTML = `
@@ -2616,7 +2693,8 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
             <div class="chart-tooltip-isin">${item.ISIN} &middot; ${cat}</div>
             <div class="chart-tooltip-stat"><span>${xLabel}:</span><span class="chart-tooltip-stat-val">${xFmt}</span></div>
             <div class="chart-tooltip-stat"><span>${yLabel}:</span><span class="chart-tooltip-stat-val">${yFmt}</span></div>
-            ${item['Aarlig_Avgift_%'] ? `<div class="chart-tooltip-stat"><span>Avgift:</span><span class="chart-tooltip-stat-val">${parseFloat(item['Aarlig_Avgift_%']).toFixed(2)}%</span></div>` : ''}
+            ${currentChartMode === 'risk_cube' ? `<div class="chart-tooltip-stat"><span>Avkastning 3Y, årlig:</span><span class="chart-tooltip-stat-val">${closest.z >= 0 ? '+' : ''}${closest.z.toFixed(2)}%</span></div>` : ''}
+            ${chartNumber(item['Aarlig_Avgift_%']) !== null ? `<div class="chart-tooltip-stat"><span>Avgift:</span><span class="chart-tooltip-stat-val">${Number(item['Aarlig_Avgift_%']).toFixed(2)}%</span></div>` : ''}
             <div style="font-size: 0.68rem; color: #818cf8; margin-top: 0.35rem; font-style: italic;">Klikk for å åpne alle tall</div>
           `;
         } else {
@@ -2630,26 +2708,54 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
       });
 
       canvas.addEventListener('click', (e) => {
+        if (chart3DWasDragged) {
+          chart3DWasDragged = false;
+          return;
+        }
         if (!chartPoints.length) return;
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        let closest = null;
-        let minDist = 14;
-
-        chartPoints.forEach(p => {
-          const dist = Math.hypot(p.px - mouseX, p.py - mouseY);
-          if (dist < minDist) {
-            minDist = dist;
-            closest = p;
-          }
-        });
+        const closest = hitTestChart(mouseX, mouseY);
 
         if (closest && closest.item) {
           openModal(closest.item);
         }
       });
+
+      canvas.addEventListener('pointerdown', e => {
+        if (currentChartMode !== 'risk_cube') return;
+        chart3DDrag = { x: e.clientX, y: e.clientY };
+        chart3DWasDragged = false;
+        tooltip.style.display = 'none';
+        canvas.setPointerCapture(e.pointerId);
+      });
+      canvas.addEventListener('pointermove', e => {
+        if (!chart3DDrag || currentChartMode !== 'risk_cube') return;
+        const dx = e.clientX - chart3DDrag.x;
+        const dy = e.clientY - chart3DDrag.y;
+        if (Math.abs(dx) + Math.abs(dy) > 1) {
+          chart3DWasDragged = true;
+          chart3DView.yaw += dx * 0.008;
+          chart3DView.pitch = Math.max(-0.15, Math.min(1.35, chart3DView.pitch + dy * 0.006));
+          chart3DDrag = { x: e.clientX, y: e.clientY };
+          renderAnalyticsChart();
+        }
+      });
+      const end3DDrag = e => {
+        if (!chart3DDrag) return;
+        chart3DDrag = null;
+        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      };
+      canvas.addEventListener('pointerup', end3DDrag);
+      canvas.addEventListener('pointercancel', end3DDrag);
+      canvas.addEventListener('wheel', e => {
+        if (currentChartMode !== 'risk_cube') return;
+        e.preventDefault();
+        chart3DView.zoom = Math.max(0.6, Math.min(1.6, chart3DView.zoom * (e.deltaY < 0 ? 1.07 : 0.93)));
+        renderAnalyticsChart();
+      }, { passive: false });
     }
   }
 
@@ -2672,40 +2778,75 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
 
     chartPoints = [];
 
-    const dataset = filteredData && filteredData.length ? filteredData : rawData;
+    const dataset = filteredData;
     if (!dataset || !dataset.length) {
       ctx.fillStyle = '#94a3b8';
       ctx.font = '14px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Ingen fond matcher de valgte filtrene.', width / 2, height / 2);
+      const infoTag = document.getElementById('chart-info-tag');
+      if (infoTag) infoTag.textContent = '0 fond i gjeldende filter';
+      const legendEl = document.getElementById('chart-legend');
+      if (legendEl) legendEl.innerHTML = '';
+      return;
+    }
+
+    if (currentChartMode === 'risk_cube') {
+      const items = dataset.filter(item => {
+        if (!hasFullThreeYears(item)) return false;
+        const ret = chartNumber(item['Avkastning_3Y_Ann_%']);
+        const vol = chartNumber(item['Standardavvik_3Y_%']);
+        const fall = chartNumber(item['Max_Drawdown_3Y_%']);
+        return ret !== null && vol !== null && fall !== null && vol > 0 && vol < 60 && fall <= 0 && fall > -80 && ret > -50 && ret < 100;
+      }).map(item => ({
+        item,
+        x: Number(item['Standardavvik_3Y_%']),
+        y: Math.abs(Number(item['Max_Drawdown_3Y_%'])),
+        z: Number(item['Avkastning_3Y_Ann_%'])
+      }));
+      chartPoints = window.Analytics3D.render(ctx, width, height, items, chart3DView);
+      const infoTag = document.getElementById('chart-info-tag');
+      if (infoTag) infoTag.textContent = `Viser ${items.length.toLocaleString('no-NO')} av ${dataset.length.toLocaleString('no-NO')} fond · 3 år · klikk for detaljer`;
+      const legendEl = document.getElementById('chart-legend');
+      if (legendEl) legendEl.innerHTML = `
+        <div class="chart-legend-item"><span class="legend-dot" style="background:#fb7185;"></span> Lavere avkastning i utvalget</div>
+        <div class="chart-legend-item"><span class="legend-dot" style="background:#a5b4fc;"></span> Midtre avkastningsnivå</div>
+        <div class="chart-legend-item"><span class="legend-dot" style="background:#5eead4;"></span> Høyere avkastning i utvalget</div>
+        <div class="chart-legend-item">Fargene er relative til dagens filter. Historiske tall er ingen prognose.</div>
+      `;
+      if (!items.length) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '14px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Ingen fond i filteret har tre sammenlignbare år med data.', width / 2, height / 2);
+      }
       return;
     }
 
     const validItems = [];
     dataset.forEach(item => {
+      if (!hasFullThreeYears(item)) return;
       let x = null;
       let y = null;
 
       if (currentChartMode === 'risk_return') {
-        const std = parseFloat(item['Standardavvik_3Y_%']) || parseFloat(item['Standardavvik_1Y_%']);
-        const ret = parseFloat(item['Avkastning_3Y_Ann_%']) !== null && !isNaN(parseFloat(item['Avkastning_3Y_Ann_%'])) 
-          ? parseFloat(item['Avkastning_3Y_Ann_%']) 
-          : parseFloat(item['Avkastning_12M_%']);
-        if (!isNaN(std) && !isNaN(ret) && std > 0 && std < 60 && ret > -50 && ret < 100) {
+        const std = chartNumber(item['Standardavvik_3Y_%']);
+        const ret = chartNumber(item['Avkastning_3Y_Ann_%']);
+        if (std !== null && ret !== null && std > 0 && std < 60 && ret > -50 && ret < 100) {
           x = std;
           y = ret;
         }
       } else if (currentChartMode === 'sortino_sharpe') {
-        const sharpe = parseFloat(item.Sharpe_3Y) || parseFloat(item.Sharpe_1Y);
-        const sortino = parseFloat(item.Beregnet_Sortino_Ratio);
-        if (!isNaN(sharpe) && !isNaN(sortino) && sharpe > -2 && sharpe < 4 && sortino > -2 && sortino < 5) {
+        const sharpe = chartNumber(item.Sharpe_3Y);
+        const sortino = chartNumber(item.Beregnet_Sortino_Ratio);
+        if (sharpe !== null && sortino !== null && sharpe > -2 && sharpe < 4 && sortino > -2 && sortino < 5) {
           x = sharpe;
           y = sortino;
         }
       } else if (currentChartMode === 'sortino_drawdown') {
-        const dd = parseFloat(item['Max_Drawdown_3Y_%']) || parseFloat(item['Max_Drawdown_1Y_%']);
-        const sortino = parseFloat(item.Beregnet_Sortino_Ratio);
-        if (!isNaN(dd) && !isNaN(sortino) && dd <= 0 && dd > -80 && sortino > -2 && sortino < 5) {
+        const dd = chartNumber(item['Max_Drawdown_3Y_%']);
+        const sortino = chartNumber(item.Beregnet_Sortino_Ratio);
+        if (dd !== null && sortino !== null && dd <= 0 && dd > -80 && sortino > -2 && sortino < 5) {
           x = dd;
           y = sortino;
         }
@@ -2718,7 +2859,7 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
 
     const infoTag = document.getElementById('chart-info-tag');
     if (infoTag) {
-      infoTag.textContent = `Viser ${validItems.length} fond med gyldige tall (klikk på et punkt for detaljer)`;
+      infoTag.textContent = `Viser ${validItems.length.toLocaleString('no-NO')} av ${dataset.length.toLocaleString('no-NO')} fond · minst 3 år med data`;
     }
 
     if (!validItems.length) {
@@ -2726,6 +2867,8 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
       ctx.font = '14px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Ikke tilstrekkelig kurshistorikk for disse nøkkeltallene i utvalget.', width / 2, height / 2);
+      const legendEl = document.getElementById('chart-legend');
+      if (legendEl) legendEl.innerHTML = '';
       return;
     }
 
@@ -2770,31 +2913,17 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
       ctx.fillStyle = 'rgba(16, 185, 129, 0.5)';
       ctx.font = 'bold 11px Inter, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('🏆 Gyllen Kvadrant (Høy avkastning / Lav risiko)', qX + 12, qY + 20);
+      ctx.fillText('Høyere avkastning / lavere svingninger i utvalget', qX + 12, qY + 20);
     } else if (currentChartMode === 'sortino_sharpe') {
-      const lineMin = Math.max(minX, minY);
-      const lineMax = Math.min(maxX, maxY);
-      if (lineMax > lineMin) {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.setLineDash([5, 5]);
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(toPxX(lineMin), toPxY(lineMin));
-        ctx.lineTo(toPxX(lineMax), toPxY(lineMax));
-        ctx.stroke();
-        ctx.restore();
-
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
-        ctx.font = 'bold 11px Inter, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('🚀 Asymmetrisk oppside (Sortino > Sharpe)', toPxX(lineMin) + 15, toPxY(lineMax) + 25);
-      }
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
+      ctx.font = 'bold 11px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('Høyt på begge mål', width - padRight - 12, padTop + 20);
     } else if (currentChartMode === 'sortino_drawdown') {
       ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
       ctx.font = 'bold 11px Inter, sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText('🛡️ Robust nedsidebeskyttelse & Høy Sortino', width - padRight - 15, padTop + 20);
+      ctx.fillText('Mindre historisk fall / høyere Sortino', width - padRight - 15, padTop + 20);
     }
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
@@ -2851,10 +2980,10 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     let yTitle = 'Avkastning 3 år ann. (%)';
     if (currentChartMode === 'sortino_sharpe') {
       xTitle = 'Sharpe Ratio 3 år (Tradisjonell risiko)';
-      yTitle = 'Sortino Ratio (Kun nedsiderisiko)';
+      yTitle = 'Sortino Ratio (hele historikken)';
     } else if (currentChartMode === 'sortino_drawdown') {
       xTitle = 'Maximum Drawdown 3 år (% fall)';
-      yTitle = 'Sortino Ratio';
+      yTitle = 'Sortino Ratio (hele historikken)';
     }
 
     ctx.fillText(xTitle, padLeft + plotW / 2, height - 12);
@@ -2881,11 +3010,11 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
           color = '#f43f5e';
         }
       } else if (currentChartMode === 'sortino_sharpe') {
-        if (d.y > d.x) {
+        if (d.x >= 1 && d.y >= 1) {
           color = '#10b981';
           radius = 5.5;
         } else {
-          color = '#f43f5e';
+          color = '#818cf8';
         }
       } else if (currentChartMode === 'sortino_drawdown') {
         if (d.y >= 1.2 && d.x > -18) {
@@ -2919,20 +3048,21 @@ Når brukeren ber om råd, porteføljeanalyse eller lavere risiko/diversifiserin
     if (legendEl) {
       if (currentChartMode === 'risk_return') {
         legendEl.innerHTML = `
-          <div class="chart-legend-item"><span class="legend-dot" style="background:#10b981;"></span> Sharpe &ge; 1.0 (Attraktiv betaling)</div>
+          <div class="chart-legend-item"><span class="legend-dot" style="background:#10b981;"></span> Sharpe &ge; 1.0</div>
           <div class="chart-legend-item"><span class="legend-dot" style="background:#818cf8;"></span> Sharpe 0.0 &ndash; 1.0 (Moderat)</div>
-          <div class="chart-legend-item"><span class="legend-dot" style="background:#f43f5e;"></span> Negativ Sharpe / Høy risiko</div>
+          <div class="chart-legend-item"><span class="legend-dot" style="background:#f43f5e;"></span> Negativ Sharpe</div>
         `;
       } else if (currentChartMode === 'sortino_sharpe') {
         legendEl.innerHTML = `
-          <div class="chart-legend-item"><span class="legend-dot" style="background:#10b981;"></span> Sortino &gt; Sharpe (Sterk oppsidevolatilitet)</div>
-          <div class="chart-legend-item"><span class="legend-dot" style="background:#f43f5e;"></span> Sortino &le; Sharpe (Svingninger preget av nedturer)</div>
-          <div class="chart-legend-item"><span style="border-top: 1.5px dashed rgba(255,255,255,0.4); width: 20px; display:inline-block;"></span> Likevekt (Sortino = Sharpe)</div>
+          <div class="chart-legend-item"><span class="legend-dot" style="background:#10b981;"></span> Sharpe og Sortino &ge; 1.0</div>
+          <div class="chart-legend-item"><span class="legend-dot" style="background:#818cf8;"></span> Øvrige fond</div>
+          <div class="chart-legend-item">Sortino dekker hele historikken; Sharpe dekker 3 år.</div>
         `;
       } else if (currentChartMode === 'sortino_drawdown') {
         legendEl.innerHTML = `
-          <div class="chart-legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> Sortino &ge; 1.2 & Drawdown &gt; -18% (Maksimal nedsidebeskyttelse)</div>
+          <div class="chart-legend-item"><span class="legend-dot" style="background:#06b6d4;"></span> Sortino &ge; 1.2 og fall mindre enn 18 %</div>
           <div class="chart-legend-item"><span class="legend-dot" style="background:#a855f7;"></span> Øvrige fond i filteret</div>
+          <div class="chart-legend-item">Sortino dekker hele historikken; kursfall dekker 3 år.</div>
         `;
       }
     }

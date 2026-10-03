@@ -338,7 +338,7 @@
           <button id="btn-toggle-charts" class="btn-toggle-charts" title="Åpne eller skjul interaktive analyse-grafer">
             <span class="charts-toggle-icon">📊</span>
             <span class="charts-toggle-label">Visuelle Grafer & Kvadrant-analyse</span>
-            <span class="charts-toggle-badge">Risk/Return &middot; Sortino &middot; Drawdown</span>
+            <span class="charts-toggle-badge">Avkastning &middot; Risiko &middot; 3D</span>
             <span class="charts-toggle-state" id="charts-toggle-state">▼ Åpne</span>
           </button>
         </div>
@@ -346,9 +346,10 @@
         <div id="analytics-charts-panel" class="charts-panel" style="display: none;">
           <div class="charts-toolbar">
             <div class="charts-mode-selector">
-              <button class="chart-mode-btn active" data-chart="risk_return">🏆 Risk vs. Return (Gyllen kvadrant)</button>
-              <button class="chart-mode-btn" data-chart="sortino_sharpe">🎯 Sortino vs. Sharpe (Avsløringsgrafen)</button>
+              <button class="chart-mode-btn active" data-chart="risk_return">🏆 Risiko vs. avkastning</button>
+              <button class="chart-mode-btn" data-chart="sortino_sharpe">🎯 Sortino vs. Sharpe</button>
               <button class="chart-mode-btn" data-chart="sortino_drawdown">🛡️ Sortino vs. Max Drawdown</button>
+              <button class="chart-mode-btn chart-mode-btn-3d" data-chart="risk_cube">✦ 3D · Avkastning / risiko / fall</button>
             </div>
             <div class="charts-toolbar-right">
               <div class="charts-info-tag" id="chart-info-tag">Hold pekeren over et punkt for info &middot; Klikk for å åpne fond</div>
@@ -358,9 +359,21 @@
             </div>
           </div>
 
+          <div class="chart-reading-guide" id="chart-reading-guide" aria-live="polite">
+            <div class="chart-reading-icon" id="chart-reading-icon">↗</div>
+            <div>
+              <div class="chart-reading-kicker">SLIK LESER DU GRAFEN</div>
+              <h3 id="chart-reading-title">Risiko og avkastning</h3>
+              <p id="chart-reading-text"></p>
+            </div>
+          </div>
           <div class="chart-canvas-container" id="chart-canvas-container">
             <canvas id="analytics-canvas"></canvas>
             <div id="chart-tooltip" class="chart-tooltip" style="display: none;"></div>
+            <div class="chart-3d-controls" id="chart-3d-controls" style="display: none;">
+              <span>Dra for å rotere · Rull for å zoome</span>
+              <button type="button" id="chart-3d-reset">Tilbakestill visning</button>
+            </div>
           </div>
           <div class="chart-legend" id="chart-legend"></div>
         </div>
@@ -1009,6 +1022,7 @@
   <script src="lightweight-charts.js"></script>
   <!-- Data Script -->
   <script src="data.js"></script>
+  <script src="analytics-3d.js?v=2"></script>
   <!-- Application Logic -->
   <script src="app.js"></script>
 </body>
