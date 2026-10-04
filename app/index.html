@@ -131,39 +131,24 @@
         <button id="btn-goto-portfolio-studio" class="btn btn-xs btn-primary">Gå til Portefølje-Studio →</button>
       </div>
 
-      <!-- KPI Summary Cards -->
-      <section class="kpi-grid">
-        <div class="kpi-card" id="kpi-total">
-          <div class="kpi-label">Aktive Treff</div>
-          <div class="kpi-value" id="kpi-val-count">0</div>
-          <div class="kpi-sub" id="kpi-sub-count">av 2 238 totalt</div>
+      <!-- Historiske modellporteføljer -->
+      <section class="model-portfolios" id="model-portfolios" aria-labelledby="model-portfolios-heading">
+        <div class="model-portfolios-head">
+          <div>
+            <div class="model-portfolios-eyebrow">MODELLPORTEFØLJER <span>•</span> 3 RISIKONIVÅER</div>
+            <h2 id="model-portfolios-heading">Slik har porteføljene gjort det</h2>
+            <p>Tre gjennomtenkte måter å eie markedet på. Se historisk utvikling mot en referanse tilpasset risikoen.</p>
+          </div>
+          <div class="model-period-toggle" role="group" aria-label="Periode for porteføljegraf">
+            <button type="button" class="model-period-btn" data-period="1m">1 måned</button>
+            <button type="button" class="model-period-btn active" data-period="3y">3 år</button>
+          </div>
         </div>
-      <div class="kpi-card" id="kpi-return">
-        <div class="kpi-label">Snitt Avkastning 12M</div>
-        <div class="kpi-value text-emerald" id="kpi-val-return">—</div>
-        <div class="kpi-sub">Annualisert 1-års avkastning</div>
-      </div>
-      <div class="kpi-card" id="kpi-sharpe">
-        <div class="kpi-label">Snitt Sharpe 3Y</div>
-        <div class="kpi-value text-indigo" id="kpi-val-sharpe">—</div>
-        <div class="kpi-sub">Risikojustert avkastning</div>
-      </div>
-      <div class="kpi-card" id="kpi-stddev">
-        <div class="kpi-label">Median StdDev 3Y</div>
-        <div class="kpi-value text-amber" id="kpi-val-stddev">—</div>
-        <div class="kpi-sub">3-års volatilitet</div>
-      </div>
-      <div class="kpi-card" id="kpi-drawdown">
-        <div class="kpi-label">Snitt Max Drawdown</div>
-        <div class="kpi-value text-rose" id="kpi-val-drawdown">—</div>
-        <div class="kpi-sub">Beregnet fra daglig NAV</div>
-      </div>
-      <div class="kpi-card" id="kpi-fee">
-        <div class="kpi-label">Snitt Årlig Avgift</div>
-        <div class="kpi-value text-sky" id="kpi-val-fee">—</div>
-        <div class="kpi-sub">Løpende forvaltningskostnad</div>
-      </div>
-    </section>
+        <div class="model-portfolios-grid" id="model-portfolios-grid" aria-live="polite">
+          <div class="model-portfolios-loading">Laster historiske porteføljer…</div>
+        </div>
+        <p class="model-portfolios-note" id="model-portfolios-note">Historikken er en simulering med dagens fond og vekter, ikke en løpende handelslogg.</p>
+      </section>
 
     <!-- Market Breadth & Macro Trend Barometer -->
     <section class="market-breadth-card" id="market-breadth-card">
@@ -1017,6 +1002,13 @@
   </div>
 
   <!-- SheetJS for direkte Excel .xlsx eksport -->
+  <div id="model-portfolio-modal" class="model-modal-backdrop" role="presentation" hidden>
+    <div class="model-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="model-modal-title" tabindex="-1">
+      <button type="button" id="model-modal-close" class="model-modal-close" aria-label="Lukk sammensetning">&times;</button>
+      <div id="model-modal-content"></div>
+    </div>
+  </div>
+
   <script src="xlsx.full.min.js"></script>
   <!-- TradingView Lightweight Charts lokalt og offline -->
   <script src="lightweight-charts.js"></script>
@@ -1024,6 +1016,7 @@
   <script src="data.js"></script>
   <script src="analytics-3d.js?v=2"></script>
   <!-- Application Logic -->
+  <script src="model-portfolios.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

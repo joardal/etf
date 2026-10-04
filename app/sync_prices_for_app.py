@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-BASE_DIR = Path(r"C:\Markedsdata")
+BASE_DIR = Path(__file__).resolve().parent.parent
 PRICES_SRC = BASE_DIR / "egenberegning_test" / "data" / "prices"
 MAPPING_FILE = BASE_DIR / "egenberegning_test" / "mapping_progress.csv"
 OUT_DIR = BASE_DIR / "app" / "prices"

@@ -31,3 +31,13 @@ Start lokal webserver:
 python -m http.server 8085 --directory app
 ```
 Åpne deretter `http://localhost:8085/` i nettleseren.
+
+## Modellporteføljer på ETF Screener & Marked
+
+Øverst i markedsfanen vises tre faste modellporteføljer: lav, moderat/høy og høy risiko. Fond, vekter og begrunnelser ligger i `app/build_model_portfolios.py`. Endre sammensetningen der og kjør `python app/build_model_portfolios.py` for å bygge `app/model_portfolios.json` på nytt. Nettsiden leser denne JSON-filen direkte.
+
+- Fondene er valgt fra prosjektets univers etter gjennomgang av prisdekning, Sharpe, Sortino, volatilitet, største fall, kostnader og innbyrdes korrelasjon. Historisk alfa er ikke brukt som direkte optimaliseringsmål fordi referanseindeksene har varierende datadekning. Vektene er redaksjonelt fastsatt med risikotak og oppdateres ikke automatisk når markedet endrer seg.
+- Alle valgte tickere er EUR-notert. Grafene bruker daglige utbyttejusterte kurser og felles handelsdager. Portefølje og referanse rebalanseres på første tilgjengelige handelsdag i hvert kvartal.
+- Referansen er en investerbar ETF-proxy med omtrent tilsvarende risiko: lav risiko 25 % EUNL / 75 % XEON, moderat/høy 85 % EUNL / 15 % XEON, høy risiko 100 % EUNL. EUNL følger MSCI World. XEON følger nå en indeks basert på €STR pluss 8,5 basispunkter, men byttet fra en annen euro overnight-indeks 30.11.2023. Referansen er netto etter ETF-kostnader og er ikke et offisielt publisert kombinasjonsindeksnivå.
+- 1 måned og 3 år er **samlet** avkastning for perioden, ikke annualisert. Meravkastning er porteføljens avkastning minus referansens avkastning i prosentpoeng. Kurtasje, spread og skatt er ikke inkludert. Siden fondene og vektene er valgt etter at historikken er kjent, er grafene retrospektive simuleringer, ikke dokumentert faktisk investeringshistorikk eller en test uten informasjon fra fremtiden.
+- GitHub Actions oppdaterer de utvalgte kurscachene på hverdager kl. 06:00 UTC, bygger porteføljene og kjører `app/test_model_portfolios.py`. Hvis datakilden ikke har ferske kurser, viser siden siste felles kursdato og markerer serier eldre enn én uke.

@@ -78,6 +78,14 @@ def main():
     if not ok:
         sys.exit(1)
 
+    # Steg 4: Bygg de tre historiske modellporteføljene fra siste kurscache
+    ok = run_step(
+        "Beregn modellporteføljer og referansekurver",
+        "app/build_model_portfolios.py"
+    )
+    if not ok:
+        sys.exit(1)
+
     total_time = round(time.time() - start_total, 1)
     print(f"\n[OK] Fullført på {total_time}s! Webappen er oppdatert med ferske data.")
 

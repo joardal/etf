@@ -443,13 +443,6 @@
   const elBtnReset = document.getElementById('btn-reset-filters');
 
   // KPI elements
-  const elKpiCount = document.getElementById('kpi-val-count');
-  const elKpiSubCount = document.getElementById('kpi-sub-count');
-  const elKpiReturn = document.getElementById('kpi-val-return');
-  const elKpiSharpe = document.getElementById('kpi-val-sharpe');
-  const elKpiStdDev = document.getElementById('kpi-val-stddev');
-  const elKpiDrawdown = document.getElementById('kpi-val-drawdown');
-  const elKpiFee = document.getElementById('kpi-val-fee');
 
   // Modal elements (Fond Detaljer)
   const elModal = document.getElementById('etf-modal');
@@ -1352,52 +1345,8 @@
     });
 
     currentPage = 1;
-    updateKPIs();
     sortAndRender();
     renderAnalyticsChart();
-  }
-
-  // Update KPI Cards
-  function updateKPIs() {
-    const n = filteredData.length;
-    elKpiCount.textContent = n.toLocaleString('no-NO');
-    elKpiSubCount.textContent = `av ${rawData.length.toLocaleString('no-NO')} totalt`;
-
-    if (n === 0) {
-      elKpiReturn.textContent = '—';
-      elKpiSharpe.textContent = '—';
-      elKpiStdDev.textContent = '—';
-      elKpiDrawdown.textContent = '—';
-      elKpiFee.textContent = '—';
-      return;
-    }
-
-    // Helper to calculate average of valid numbers
-    const calcAvg = (col) => {
-      const vals = filteredData.map(d => parseFloat(d[col])).filter(v => !isNaN(v));
-      if (!vals.length) return null;
-      return vals.reduce((a, b) => a + b, 0) / vals.length;
-    };
-
-    // Helper to calculate median
-    const calcMedian = (col) => {
-      const vals = filteredData.map(d => parseFloat(d[col])).filter(v => !isNaN(v)).sort((a, b) => a - b);
-      if (!vals.length) return null;
-      const mid = Math.floor(vals.length / 2);
-      return vals.length % 2 !== 0 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
-    };
-
-    const avgRet = calcAvg('Avkastning_12M_%');
-    const avgSharpe = calcAvg('Sharpe_3Y');
-    const medStdDev = calcMedian('Standardavvik_3Y_%');
-    const avgDD = calcAvg('Max_Drawdown_3Y_%') || calcAvg('Max_Drawdown_Prosent');
-    const avgFee = calcAvg('Aarlig_Avgift_%');
-
-    elKpiReturn.textContent = avgRet !== null ? `${avgRet >= 0 ? '+' : ''}${avgRet.toFixed(2)}%` : '—';
-    elKpiSharpe.textContent = avgSharpe !== null ? avgSharpe.toFixed(2) : '—';
-    elKpiStdDev.textContent = medStdDev !== null ? `${medStdDev.toFixed(2)}%` : '—';
-    elKpiDrawdown.textContent = avgDD !== null ? `${avgDD.toFixed(2)}%` : '—';
-    elKpiFee.textContent = avgFee !== null ? `${avgFee.toFixed(2)}%` : '—';
   }
 
   // Sorting

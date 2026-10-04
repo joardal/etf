@@ -2,12 +2,12 @@ name: Daglig Markedsoppdatering & Deployment
 
 on:
   schedule:
-    # Kjører hver ukedag (mandag-fredag) kl. 02:00 UTC (04:00 norsk tid) etter børsene har stengt
-    - cron: '0 2 * * 1-5'
+    # Kjører hver ukedag etter forrige handelsdags europeiske sluttkurser er tilgjengelige.
+    - cron: '0 6 * * 1-5'
   workflow_dispatch:
     inputs:
       fetch_prices:
-        description: 'Hent nye kurser fra Yahoo Finance (inkrementelt)'
+        description: 'Kjør også eksisterende fullunivers-beregning (modellfond oppdateres alltid)'
         required: false
         type: boolean
         default: false
@@ -28,7 +28,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: Installer avhengigheter
         run: |
@@ -37,17 +36,19 @@ jobs:
 
       - name: Kjør oppdateringspipeline
         run: |
+          python app/build_model_portfolios.py --refresh-prices
           if [ "${{ github.event.inputs.fetch_prices }}" = "true" ]; then
             python oppdater_data.py --fetch-prices
           else
             python oppdater_data.py
           fi
+          python app/test_model_portfolios.py
 
       - name: Commit og push endringer til GitHub
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add app/data.js app/prices/manifest.json egenberegning_test/output/
+          git add app/data.js app/model_portfolios.json app/prices/ egenberegning_test/data/prices/ egenberegning_test/output/
           if git diff --staged --quiet; then
             echo "Ingen nye endringer å publisere."
           else
