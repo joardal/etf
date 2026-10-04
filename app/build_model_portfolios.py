@@ -43,6 +43,23 @@ FUNDS = {
     "5MVL": "Verdifilter i fremvoksende markeder gir eksponering utenfor de utviklede markedene, med en avgrenset vekt på grunn av svingningene.",
 }
 
+DISPLAY_NAMES = {
+    "XEON": "Xtrackers EUR Overnight Rate Swap UCITS ETF",
+    "ERNX": "iShares € Ultrashort Bond UCITS ETF",
+    "IE3E": "iShares € Corp Bond 0–3yr ESG SRI UCITS ETF",
+    "EH1Y": "iShares Broad € High Yield Corp Bond UCITS ETF",
+    "VDIV": "VanEck Morningstar Developed Markets Dividend Leaders ETF",
+    "IS3S": "iShares MSCI World Value Factor UCITS ETF",
+    "XD9U": "Xtrackers MSCI USA UCITS ETF",
+    "LGGE": "L&G Europe ex-UK Quality Dividends Equal Weight ETF",
+    "SPYZ": "SPDR MSCI Europe Financials UCITS ETF",
+    "FVSJ": "Franklin FTSE Asia ex China ex Japan UCITS ETF",
+    "VVSM": "VanEck Semiconductor UCITS ETF",
+    "XESD": "Xtrackers Spain UCITS ETF",
+    "FLXD": "Franklin European Quality Dividend UCITS ETF",
+    "5MVL": "iShares MSCI Emerging Markets Value Factor UCITS ETF",
+}
+
 PORTFOLIOS = [
     {
         "id": "low",
@@ -173,7 +190,7 @@ def build(refresh_prices: bool = False) -> dict:
             annual_fee = float(details["MS_Aarlig_Avgift_%"])
             fee += weight * annual_fee
             holdings.append({"ticker": ticker, "isin": row["ISIN"],
-                             "name": str(details["MS_Navn_Morningstar"]),
+                             "name": DISPLAY_NAMES[ticker],
                              "weight": round(weight * 100, 1),
                              "fee": round(annual_fee, 2), "reason": FUNDS[ticker]})
         output["portfolios"].append({
