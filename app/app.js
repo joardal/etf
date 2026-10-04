@@ -463,11 +463,10 @@
 
   // ==========================================================================
   // Eksklusiv Tilgang / Autentisering
-  // Brukernavn: hengekøye | Passord: hengepupper
   // ==========================================================================
-  const AUTH_KEY = 'etf_vip_authenticated';
-  const VALID_USER = 'hengekøye';
-  const VALID_PASS = 'hengepupper';
+  const AUTH_KEY = 'etf_vip_authenticated_v2';
+  const VALID_USER = 'grei';
+  const VALID_PASS = 'skuring';
 
   function initAuthProtection() {
     const overlay = document.getElementById('auth-lock-overlay');
