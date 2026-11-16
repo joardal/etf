@@ -21,3 +21,7 @@ fx:EURIDR=X,2022-08-19,4.0,15025.0,-100.0,feilprint-droppet
 fx:EURIDR=X,2022-10-21,1414.0,15155.0,-90.7,feilprint-droppet
 yahoo:1306.T,2026-03-30,36.9305,375.4861,-90.2,feilprint-droppet
 yahoo:1306.T,2026-03-31,36.4399,375.4861,-90.3,feilprint-droppet
+yahoo:LYP5.DE,2026-10-26,5.0002,497.92,-99.0,splitt-reskalert,0.010042
+yahoo:LYBK.DE,2026-10-26,4.4275,349.8,-98.7,historikk-kuttet-VERIFISER,0.012657
+yahoo:ZSG0.DE,2026-11-16,15.874,9.556,66.1,siste-rad-droppet
+yahoo:C5ME.DE,2026-10-12,8.647,5.088,69.9,historikk-kuttet-VERIFISER,1.699489
