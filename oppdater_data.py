@@ -45,8 +45,18 @@ def main():
     start_total = time.time()
     print("--- Starter ETF Analytics Pro oppdateringspipeline ---")
 
-    # Hvis man sender med --fetch-prices, oppdateres priser først via run_all.py
+    # Hvis man sender med --fetch-prices, oppdateres priser først via run_all.py.
+    # Slett checkpointet først slik at alle tickere faktisk rehentes og
+    # beregnes på nytt (checkpointet hopper ellers over alt som har
+    # lyktes tidligere, uavhengig av alder).
     if "--fetch-prices" in sys.argv:
+        ckpt = ROOT / "egenberegning_test" / "output" / "egen_full_checkpoint.csv"
+        try:
+            if ckpt.exists():
+                ckpt.unlink()
+                print('Slettet gammelt checkpoint, alle tickere beregnes pa nytt.')
+        except Exception as e:
+            print(f'Advarsel: kunne ikke slette checkpoint ({e})')
         ok = run_step(
             "Hent kurser og beregn nøkkeltall",
             "egenberegning_test/src/run_all.py"
