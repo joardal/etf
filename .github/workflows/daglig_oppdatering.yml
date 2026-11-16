@@ -18,6 +18,9 @@ permissions:
 jobs:
   update-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: Sjekk ut repository
         uses: actions/checkout@v4
@@ -55,3 +58,25 @@ jobs:
             git commit -m "Automatisert markedsoppdatering $(date -u +'%Y-%m-%d %H:%M UTC') [skip ci]"
             git push origin main
           fi
+
+      # Cloudflare Pages-prosjektet er av typen Direct Upload og oppdateres IKKE
+      # automatisk fra GitHub. Derfor må hver oppdatering også deployes eksplisitt.
+      - name: Sikkerhetskontroll før deploy
+        run: |
+          if [ -f app/.env ] && grep -Eq 'CLOUDFLARE_API_TOKEN|cfut_|CLOUDFLARE_ACCOUNT_ID' app/.env; then
+            echo "FEIL: app/.env inneholder hemmeligheter og vil bli publisert. Flytt filen ut av app/."
+            exit 1
+          fi
+
+      - name: Deploy til Cloudflare Pages
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy app --project-name etf-analytics-pro --branch main
+
+      - name: Varsle hvis Cloudflare-hemmeligheter mangler
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == '' }}
+        run: |
+          echo "::warning::CLOUDFLARE_API_TOKEN og/eller CLOUDFLARE_ACCOUNT_ID er ikke satt som GitHub-secrets. Data er oppdatert i repoet, men ikke publisert til Cloudflare Pages."

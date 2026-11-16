@@ -32,6 +32,18 @@ python -m http.server 8085 --directory app
 ```
 Åpne deretter `http://localhost:8085/` i nettleseren.
 
+## ☁️ Publisering til Cloudflare Pages
+
+Cloudflare Pages-prosjektet `etf-analytics-pro` bruker Direct Upload. Det betyr at GitHub-push alene **ikke** oppdaterer nettsiden. Publiser med:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy_to_cloudflare.ps1
+```
+
+`oppdater_marked.bat` kjører hele pipelinen og deployer til slutt. Den daglige GitHub Actions-jobben deployer også automatisk dersom repoet har secrets `CLOUDFLARE_API_TOKEN` og `CLOUDFLARE_ACCOUNT_ID`; uten disse oppdateres bare repoet.
+
+Legg aldri hemmeligheter i `app/` — hele mappen publiseres offentlig. Lokale nøkler skal ligge i rotmappen `.env` (ignorert av git) eller som GitHub-secrets.
+
 ## Modellporteføljer på ETF Screener & Marked
 
 Øverst i markedsfanen vises tre faste modellporteføljer: lav, moderat/høy og høy risiko. Fond, vekter og begrunnelser ligger i `app/build_model_portfolios.py`. Endre sammensetningen der og kjør `python app/build_model_portfolios.py` for å bygge `app/model_portfolios.json` på nytt. Nettsiden leser denne JSON-filen direkte.

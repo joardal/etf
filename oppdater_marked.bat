@@ -6,28 +6,42 @@ echo    ETF Analytics Pro - Automatisk Oppdatering
 echo ======================================================
 echo.
 
-cd /d "C:\Markedsdata"
+cd /d "%~dp0"
 
-echo Kjører beregnings- og synkroniseringspipeline...
-python oppdater_data.py
+echo Henter ferske kurser og kjorer beregningspipeline...
+python oppdater_data.py --fetch-prices
+if errorlevel 1 goto :feil
 
-if %ERRORLEVEL% EQU 0 (
-    echo.
-    echo ======================================================
-    echo    [Vellykket] Data oppdatert lokalt!
-    echo    Laster opp endringer til GitHub og Cloudflare...
-    echo ======================================================
-    git add app/data.js app/prices/manifest.json egenberegning_test/output/
+echo.
+echo Publiserer dataendringer til GitHub...
+git add app/data.js app/model_portfolios.json app/prices/ egenberegning_test/data/prices/ egenberegning_test/output/
+git diff --cached --quiet
+if errorlevel 1 (
     git commit -m "Oppdatert markedsdata og beregninger"
+    if errorlevel 1 goto :feil
+    git pull --rebase origin main
+    if errorlevel 1 goto :feil
     git push origin main
-    echo.
-    echo ======================================================
-    echo    [FERDIG] Nettsiden oppdateres automatisk pa Cloudflare!
-    echo ======================================================
+    if errorlevel 1 goto :feil
 ) else (
-    echo.
-    echo [FEIL] Oppdateringen stoppet med feilkode %ERRORLEVEL%.
+    echo Ingen nye dataendringer i repoet.
 )
 
+echo.
+echo Deployer til Cloudflare Pages...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0deploy_to_cloudflare.ps1"
+if errorlevel 1 goto :feil
+
+echo.
+echo ======================================================
+echo    [FERDIG] Nettsiden er oppdatert pa Cloudflare!
+echo ======================================================
+goto :slutt
+
+:feil
+echo.
+echo [FEIL] Oppdateringen stoppet. Se meldingen over.
+
+:slutt
 echo.
 pause

@@ -5,6 +5,7 @@ av kvantitative beregninger, tekniske indikatorer og Nordnet-dimensjoner.
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -13,6 +14,8 @@ ROOT = Path(__file__).resolve().parent
 LEVERANSE_CSV = ROOT / "egenberegning_test" / "output" / "leveranse_egenberegning.csv"
 MANIFEST_JSON = ROOT / "app" / "prices" / "manifest.json"
 OUT_DATA_JS = ROOT / "app" / "data.js"
+
+TODAY = date.today().isoformat()
 
 
 def clean_val(val):
@@ -103,9 +106,9 @@ def export_data():
             "Datastatus_Prioritet_1": "Komplett" if ret_12m is not None else "Mangler data",
             "Datastatus_Prioritet_2": "Komplett" if beta_3y is not None else "Mangler benchmark",
             "Kategori_Morningstar": kategori,
-            "Oppdateringsdato": "2026-09-29",
-            "Oppdateringsdato_Avkastning": "2026-09-29",
-            "Oppdateringsdato_Risiko": "2026-09-29",
+            "Oppdateringsdato": TODAY,
+            "Oppdateringsdato_Avkastning": TODAY,
+            "Oppdateringsdato_Risiko": TODAY,
             "Valuta_Avkastning": pick_first(row.get("Egen_Valuta"), row.get("MS_Valuta_Avkastning"), "EUR"),
             "Valuta_Risiko": pick_first(row.get("Egen_Valuta"), row.get("MS_Valuta_Avkastning"), "EUR"),
             "Valuta_AUM": pick_first(row.get("MS_Valuta_Avkastning"), row.get("Egen_Valuta"), "EUR"),
